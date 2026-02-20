@@ -379,12 +379,4 @@ Tuna — 25.5 kg (45–60 cm)
 
 ---
 
-## 👥 Authors
 
-Developed as part of a fisheries management capstone project.
-
----
-
-## 📄 License
-
-This project is for academic and demonstration purposes.
