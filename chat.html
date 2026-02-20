@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EcoFin Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <div class="dashboard-container">
+
+            <!-- Header -->
+            <header class="top-header chat-header">
+                <img src="images/shark-logo.png" class="chat-logo">
+                <h2>EcoFin</h2>
+            </header>
+
+            <!-- Chat Area -->
+            <div class="chat-main" id="chatMain">
+                <div class="chat-message bot" id="greetingMsg">
+                    Hi! 👋 What would you like to know today?
+                </div>
+            </div>
+
+            <!-- Chat Option Buttons -->
+            <div class="chat-options">
+                <button onclick="sendMessage('What is the weather today?')">🌤 Weather Today</button>
+                <button onclick="sendMessage('What is the fishing forecast?')">🎣 Fishing Forecast</button>
+                <button onclick="sendMessage('Show my catch overview')">📊 Catch Overview</button>
+            </div>
+
+            <!-- Bottom Navigation Bar -->
+            <nav class="bottom-nav">
+                <a href="dashboard.html" class="bottom-nav-item">
+                    <img src="images/home.png" alt="Home" class="nav-icon">
+                    <span>Home</span>
+                </a>
+                <a href="log-catch.html" class="bottom-nav-item">
+                    <img src="images/log-catch.png" alt="Log Catch" class="nav-icon">
+                    <span>Log Catch</span>
+                </a>
+                <a href="history.html" class="bottom-nav-item">
+                    <img src="images/history.png" alt="History" class="nav-icon">
+                    <span>History</span>
+                </a>
+                <a href="chat.html" class="bottom-nav-item active">
+                    <img src="images/chat.png" alt="Chat" class="nav-icon">
+                    <span>Chat</span>
+                </a>
+            </nav>
+
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        const chatMain = document.getElementById('chatMain');
+        let currentUser = null;
+
+        // ─── Init ─────────────────────────────────────────────────────
+        async function init() {
+            currentUser = await requireLogin();
+            if (!currentUser) return;
+
+            document.getElementById('greetingMsg').textContent =
+                `Hi ${currentUser.name}! 👋 What would you like to know today?`;
+            document.title = `Chat — ${currentUser.name}`;
+        }
+
+        // ─── Get user's GPS location ──────────────────────────────────
+        function getUserLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation not supported'));
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+                    () => {
+                        // Fallback to Philippines if denied
+                        resolve({ lat: 14.5995, lon: 120.9842 });
+                    },
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            });
+        }
+
+        // ─── Fetch current weather from Open-Meteo (no API key needed) ───
+        async function fetchWeather(lat, lon) {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,precipitation,pressure_msl,weather_code&wind_speed_unit=ms`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Weather API failed');
+            return await res.json();
+        }
+
+        // ─── Fetch hourly forecast from Open-Meteo (no API key needed) ───
+        async function fetchForecast(lat, lon) {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,wind_speed_10m,precipitation_probability,pressure_msl,weather_code&wind_speed_unit=ms&forecast_days=1`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Forecast API failed');
+            return await res.json();
+        }
+
+        // ─── Decode Open-Meteo weather code to description + emoji ───────
+        function decodeWeatherCode(code) {
+            if (code === 0) return { desc: 'Clear sky', emoji: '☀️' };
+            if (code <= 2) return { desc: 'Partly cloudy', emoji: '⛅' };
+            if (code === 3) return { desc: 'Overcast', emoji: '☁️' };
+            if (code <= 49) return { desc: 'Foggy', emoji: '🌫' };
+            if (code <= 59) return { desc: 'Drizzle', emoji: '🌦' };
+            if (code <= 69) return { desc: 'Rain', emoji: '🌧' };
+            if (code <= 79) return { desc: 'Snow', emoji: '❄️' };
+            if (code <= 84) return { desc: 'Rain showers', emoji: '🌧' };
+            if (code <= 94) return { desc: 'Thunderstorm', emoji: '⛈️' };
+            return { desc: 'Thunderstorm', emoji: '⛈️' };
+        }
+
+        // ─── Rate fishing conditions based on weather data ───────────────
+        function rateFishing({ wind, temp, pressure, code, precipitation }) {
+            let score = 100;
+
+            // Wind: ideal is 2–5 m/s, bad above 10
+            if (wind > 10) score -= 40;
+            else if (wind > 7) score -= 20;
+            else if (wind < 1) score -= 10;
+
+            // Temp: ideal 20–28°C
+            if (temp < 15 || temp > 35) score -= 20;
+            else if (temp < 18 || temp > 32) score -= 10;
+
+            // Pressure: high pressure = better fishing
+            if (pressure < 1000) score -= 20;
+            else if (pressure > 1020) score += 10;
+
+            // Weather code: thunderstorm/heavy rain is bad
+            if (code >= 80 && code <= 99) score -= 50; // storm/thunder
+            else if (code >= 60 && code <= 79) score -= 30; // rain/snow
+            else if (code >= 50 && code <= 59) score -= 20; // drizzle
+
+            // Precipitation chance
+            if (precipitation > 70) score -= 20;
+            else if (precipitation > 40) score -= 10;
+
+            score = Math.max(0, Math.min(100, score));
+
+            if (score >= 80) return { label: 'Excellent ✅', emoji: '🟢' };
+            if (score >= 60) return { label: 'Good 👍', emoji: '🟡' };
+            if (score >= 40) return { label: 'Fair ⚠️', emoji: '🟠' };
+            return { label: 'Poor ❌', emoji: '🔴' };
+        }
+
+        // ─── Get reverse-geocoded city name ───────────────────────────
+        async function getCityName(lat, lon) {
+            try {
+                const res = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+                    { headers: { 'Accept-Language': 'en' } }
+                );
+                const data = await res.json();
+                const a = data.address || {};
+                return a.city || a.municipality || a.town || a.county || 'your area';
+            } catch {
+                return 'your area';
+            }
+        }
+
+        // ─── Build weather message ────────────────────────────────────
+        async function getWeatherMessage(lat, lon) {
+            const [data, city] = await Promise.all([
+                fetchWeather(lat, lon),
+                getCityName(lat, lon)
+            ]);
+
+            const c = data.current;
+            const temp = Math.round(c.temperature_2m);
+            const feels = Math.round(c.apparent_temperature);
+            const humidity = c.relative_humidity_2m;
+            const wind = c.wind_speed_10m;
+            const pressure = c.pressure_msl;
+            const code = c.weather_code;
+            const { desc, emoji: wEmoji } = decodeWeatherCode(code);
+
+            const fishing = rateFishing({ wind, temp, pressure, code, precipitation: 0 });
+
+            return (
+                `${wEmoji} Weather in ${city}\n` +
+                `──────────────────────\n` +
+                `Condition:  ${desc}\n` +
+                `Temp:       ${temp}°C (feels like ${feels}°C)\n` +
+                `Humidity:   ${humidity}%\n` +
+                `Wind:       ${wind} m/s\n` +
+                `Pressure:   ${Math.round(pressure)} hPa\n` +
+                `──────────────────────\n` +
+                `Fishing:    ${fishing.emoji} ${fishing.label}`
+            );
+        }
+
+        // ─── Build fishing forecast message ───────────────────────────
+        async function getForecastMessage(lat, lon) {
+            const [data, city] = await Promise.all([
+                fetchForecast(lat, lon),
+                getCityName(lat, lon)
+            ]);
+
+            const now = new Date();
+            const currentHour = now.getHours();
+
+            // Get next 6 hours from current hour
+            const slots = [];
+            for (let i = 0; i < 6; i++) {
+                const idx = currentHour + i;
+                if (idx >= data.hourly.time.length) break;
+
+                const time = new Date(data.hourly.time[idx]);
+                const hour = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const temp = Math.round(data.hourly.temperature_2m[idx]);
+                const wind = data.hourly.wind_speed_10m[idx];
+                const pressure = data.hourly.pressure_msl[idx];
+                const code = data.hourly.weather_code[idx];
+                const precipitation = data.hourly.precipitation_probability[idx];
+
+                const rating = rateFishing({ wind, temp, pressure, code, precipitation });
+                slots.push({ hour, rating, temp, wind, idx });
+            }
+
+            // Best time to fish
+            const best = slots.reduce((prev, curr) =>
+                curr.rating.label.includes('Excellent') ? curr :
+                    (!prev.rating.label.includes('Excellent') && curr.rating.label.includes('Good')) ? curr : prev
+            );
+
+            return (
+                `🎣 Fishing Forecast — ${city}\n` +
+                `──────────────────────\n` +
+                slots.map(s => `${s.hour}  ${s.rating.emoji} ${s.rating.label}  ${s.temp}°C  💨${s.wind}m/s`).join('\n') +
+                `\n──────────────────────\n` +
+                `⭐ Best time: ${best.hour}`
+            );
+        }
+
+        // ─── Main message handler ─────────────────────────────────────
+        async function sendMessage(text) {
+
+            // User bubble
+            const userMsg = document.createElement('div');
+            userMsg.className = 'chat-message user';
+            userMsg.innerText = text;
+            chatMain.appendChild(userMsg);
+            scrollToBottom();
+
+            // Typing indicator
+            const typingMsg = document.createElement('div');
+            typingMsg.className = 'chat-message bot';
+            typingMsg.innerText = '...';
+            typingMsg.id = 'typingIndicator';
+            chatMain.appendChild(typingMsg);
+            scrollToBottom();
+
+            try {
+                const botMsg = document.createElement('div');
+                botMsg.className = 'chat-message bot';
+
+                if (text.toLowerCase().includes('weather')) {
+                    const { lat, lon } = await getUserLocation();
+                    botMsg.innerText = await getWeatherMessage(lat, lon);
+
+                } else if (text.toLowerCase().includes('forecast')) {
+                    const { lat, lon } = await getUserLocation();
+                    botMsg.innerText = await getForecastMessage(lat, lon);
+
+                } else if (text.toLowerCase().includes('overview')) {
+                    try {
+                        const res = await fetch('/api/my-catches');
+                        const catches = await res.json();
+
+                        if (catches.length) {
+                            const latest = catches[catches.length - 1];
+                            botMsg.innerText =
+                                `📊 ${currentUser.name}, you have ${catches.length} total catch${catches.length > 1 ? 'es' : ''}.\n\n` +
+                                `Latest catch:\n🐟 ${latest.fish} — ${latest.weight} kg\n📍 ${latest.location}\n📅 ${latest.date}`;
+                        } else {
+                            botMsg.innerText =
+                                `📊 ${currentUser.name}, you have no catches logged yet.\n\nUse Log Catch to record your first catch!`;
+                        }
+                    } catch {
+                        botMsg.innerText = '📊 Could not load catch data. Make sure the server is running.';
+                    }
+
+                } else {
+                    botMsg.innerText =
+                        `I didn't understand that. Try one of the buttons below:\n🌤 Weather Today\n🎣 Fishing Forecast\n📊 Catch Overview`;
+                }
+
+                // Remove typing indicator and show real reply
+                document.getElementById('typingIndicator')?.remove();
+                chatMain.appendChild(botMsg);
+                scrollToBottom();
+
+            } catch (err) {
+                document.getElementById('typingIndicator')?.remove();
+                const errMsg = document.createElement('div');
+                errMsg.className = 'chat-message bot';
+                errMsg.innerText = `⚠️ Could not fetch data. Please check your internet connection and try again.`;
+                chatMain.appendChild(errMsg);
+                scrollToBottom();
+            }
+        }
+
+        function scrollToBottom() {
+            chatMain.scrollTop = chatMain.scrollHeight;
+        }
+
+        init();
+    </script>
+
+</body>
+</html>

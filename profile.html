@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard-wrapper">
+        <div class="dashboard-container">
+
+            <!-- Header -->
+            <header class="top-header">
+                <img src="images/shark-logo.png" alt="Shark Logo" class="top-logo">
+                <div class="header-right">
+                    <img src="images/notification.png" alt="Notification" class="notif-logo">
+                    <a href="profile.html">
+                        <img src="images/profile.png" alt="Profile" class="notif-logo">
+                    </a>
+                </div>
+            </header>
+
+            <!-- Main scrollable section -->
+            <div class="dashboard-main">
+
+                <!-- Profile Header -->
+                <div class="profile-header">
+                    <img src="images/profile.png" class="profile-avatar">
+                    <h2 id="profileName">Loading...</h2>
+                    <p id="profileLocation" style="color:#666; font-size:14px; margin:4px 0 0 0;"></p>
+                </div>
+
+                <!-- Stat Cards -->
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <span id="totalCatches">--</span>
+                        <p>Total Catches</p>
+                    </div>
+                    <div class="stat-card">
+                        <span id="successRate">--</span>
+                        <p>Success Rate</p>
+                    </div>
+                    <div class="stat-card">
+                        <span id="achievements">--</span>
+                        <p>Achievements</p>
+                    </div>
+                    <div class="stat-card">
+                        <span id="fishingHours">--</span>
+                        <p>Fishing Hours</p>
+                    </div>
+                </div>
+
+                <!-- Personal Details -->
+                <div class="catch-record-container">
+                    <h3>Personal Details</h3>
+                    <div class="record-row">
+                        <span class="record-label">Full Name:</span>
+                        <span class="record-value" id="detailName">--</span>
+                    </div>
+                    <div class="record-row">
+                        <span class="record-label">Email:</span>
+                        <span class="record-value" id="detailEmail">--</span>
+                    </div>
+                    <div class="record-row">
+                        <span class="record-label">Location:</span>
+                        <span class="record-value" id="detailLocation">--</span>
+                    </div>
+                    <div class="record-row">
+                        <span class="record-label">Member Since:</span>
+                        <span class="record-value" id="detailMember">--</span>
+                    </div>
+                </div>
+
+                <!-- Latest Catch Summary -->
+                <div class="catch-summary-card">
+                    <h3>🐟 Latest Catch</h3>
+                    <p id="catchFish" style="font-weight:bold; font-size:15px;">--</p>
+                    <p id="catchLocation">--</p>
+                    <p id="catchDate">--</p>
+                </div>
+
+                <!-- Connected Accounts -->
+                <div class="connect-section">
+                    <h3>Connected Accounts</h3>
+
+                    <div class="connect-row">
+                        <img src="images/chat.png" style="width:24px; height:24px;">
+                        <span>Facebook Messenger</span>
+                        <span id="messengerStatus" class="connect-btn messenger-btn">
+                            Not Connected
+                        </span>
+                    </div>
+
+                    <div class="connect-row">
+                        <img src="images/home.png" style="width:24px; height:24px;">
+                        <span>WhatsApp</span>
+                        <span id="whatsappStatus" class="connect-btn whatsapp-btn">
+                            Not Connected
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Logout Button -->
+                <a href="/auth/logout" style="
+                    display: block;
+                    text-align: center;
+                    margin-top: 20px;
+                    padding: 12px;
+                    background-color: #cc0000;
+                    color: white;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    font-weight: bold;
+                    font-size: 15px;
+                ">Logout</a>
+
+            </div>
+
+            <!-- Bottom Navigation Bar -->
+            <nav class="bottom-nav">
+                <a href="dashboard.html" class="bottom-nav-item">
+                    <img src="images/home.png" alt="Home" class="nav-icon">
+                    <span>Home</span>
+                </a>
+                <a href="log-catch.html" class="bottom-nav-item">
+                    <img src="images/log-catch.png" alt="Log Catch" class="nav-icon">
+                    <span>Log Catch</span>
+                </a>
+                <a href="history.html" class="bottom-nav-item">
+                    <img src="images/history.png" alt="History" class="nav-icon">
+                    <span>History</span>
+                </a>
+                <a href="chat.html" class="bottom-nav-item">
+                    <img src="images/chat.png" alt="Chat" class="nav-icon">
+                    <span>Chat</span>
+                </a>
+            </nav>
+
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        async function init() {
+            const user = await requireLogin();
+            if (!user) return;
+
+            // ─── Profile header ───────────────────────────────────────
+            document.getElementById('profileName').textContent = user.name;
+            document.getElementById('profileLocation').textContent = user.location || 'Philippines';
+            document.title = `Profile — ${user.name}`;
+
+            // ─── Stat cards ───────────────────────────────────────────
+            document.getElementById('totalCatches').textContent = user.totalCatches || 0;
+            document.getElementById('successRate').textContent = (user.successRate || 0) + '%';
+            document.getElementById('achievements').textContent = user.achievements || 0;
+            document.getElementById('fishingHours').textContent = user.fishingHours || 0;
+
+            // ─── Personal details ─────────────────────────────────────
+            document.getElementById('detailName').textContent = user.name;
+            document.getElementById('detailEmail').textContent = user.email || 'Not provided';
+            document.getElementById('detailLocation').textContent = user.location || 'Philippines';
+            document.getElementById('detailMember').textContent = user.memberSince || '--';
+
+            // ─── Connected accounts ───────────────────────────────────
+            const messengerBtn = document.getElementById('messengerStatus');
+            const whatsappBtn = document.getElementById('whatsappStatus');
+
+            if (user.messengerConnected) {
+                messengerBtn.textContent = '✅ Connected';
+                messengerBtn.classList.add('connected');
+            }
+            if (user.whatsappConnected) {
+                whatsappBtn.textContent = '✅ Connected';
+                whatsappBtn.classList.add('connected');
+            }
+
+            // ─── Latest catch ─────────────────────────────────────────
+            try {
+                const res = await fetch('/api/my-catches');
+                const catches = await res.json();
+
+                if (catches.length) {
+                    const latest = catches[catches.length - 1];
+                    document.getElementById('catchFish').textContent =
+                        `${latest.fish} — ${latest.weight} (${latest.size})`;
+                    document.getElementById('catchLocation').textContent =
+                        `📍 ${latest.location}`;
+                    document.getElementById('catchDate').textContent =
+                        `📅 ${latest.date}`;
+                } else {
+                    document.getElementById('catchFish').textContent = 'No catches logged yet.';
+                    document.getElementById('catchLocation').textContent = '';
+                    document.getElementById('catchDate').textContent = '';
+                }
+            } catch (err) {
+                console.error('Could not load catches:', err);
+            }
+        }
+
+        // ─── Show success message if redirected from OAuth ────────────
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('connected') === 'messenger') {
+            alert(`✅ Messenger connected successfully!`);
+        }
+        if (params.get('error')) {
+            alert('❌ Connection failed. Please try again.');
+        }
+
+        init();
+    </script>
+
+</body>
+</html>

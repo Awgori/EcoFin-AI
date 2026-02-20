@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoFin - AI Login</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-container">
+            <img src="images/shark-logo.png" alt="Logo" class="logo">
+            <h1>EcoFin - AI</h1>
+            <p class="subtitle">Smarter Fisheries,<br>Greener Future</p>
+            <input type="text" placeholder="Email address">
+            <input type="password" placeholder="Password">
+            <button id="loginBtn">Sign In</button>
+            <p class="forgot">Forgot password?</p>
+            <!-- Error message (shows if OAuth fails) -->
+            <p id="errorMsg" style="color:red; font-size:13px; display:none; margin:0;">
+                Login failed. Please try again.
+            </p>
+            <p class="or">Or continue with</p>
+            <div class="social-login">
+                <i class="fab fa-google"></i>
+                <!-- Facebook icon triggers real Facebook Login -->
+                <i class="fab fa-facebook-f" id="fbLoginBtn" title="Sign in with Facebook"></i>
+                <i class="fab fa-twitter"></i>
+                <i class="fab fa-linkedin-in"></i>
+            </div>
+            <p class="signup">Don't have an account? <a href="#">Sign up</a></p>
+        </div>
+    </div>
+    <script>
+        // ─── Existing Sign In button (email/password — kept for UI) ──
+        const loginBtn = document.getElementById('loginBtn');
+        loginBtn.addEventListener('click', function () {
+            window.location.href = 'dashboard.html';
+        });
+        // ─── Facebook icon in social row triggers login ───────────────
+        document.getElementById('fbLoginBtn').addEventListener('click', function () {
+            loginWithFacebook();
+        });
+        // ─── Facebook OAuth Login ─────────────────────────────────────
+        function loginWithFacebook() {
+            window.location.href = '/auth/facebook';
+        }
+        // ─── Show error if redirected back with error param ───────────
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('error')) {
+            document.getElementById('errorMsg').style.display = 'block';
+        }
+        // ─── If already logged in, skip login page ────────────────────
+        fetch('/api/me')
+            .then(res => {
+                if (res.ok) window.location.href = '/dashboard.html';
+            })
+            .catch(() => { });  // Not logged in — stay on login page
+    </script>
+</body>
+</html>

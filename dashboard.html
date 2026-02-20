@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .weather-loading {
+            color: #999;
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        .weather-main-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .weather-temp {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2E7D32;
+        }
+
+        .weather-desc {
+            font-size: 15px;
+            color: #555;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            font-size: 13px;
+            color: #444;
+        }
+
+            .weather-details div {
+                background: #f1f8f1;
+                border-radius: 6px;
+                padding: 6px 10px;
+            }
+
+        .weather-location {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        /* Warning levels */
+        .warning-container.safe {
+            background: #e8f5e9;
+            border-left: 4px solid #2E7D32;
+        }
+
+        .warning-container.moderate {
+            background: #fff8e1;
+            border-left: 4px solid #f9a825;
+        }
+
+        .warning-container.danger {
+            background: #ffebee;
+            border-left: 4px solid #c62828;
+        }
+
+        .warning-container h3 {
+            margin: 0 0 6px;
+        }
+
+        .warning-container p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* Forecast cards dynamic colors */
+        .forecast-card {
+            height: 65px;
+            width: 65px;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            text-align: center;
+            padding: 4px;
+        }
+
+            .forecast-card span:first-child {
+                font-weight: bold;
+                font-size: 11px;
+            }
+    </style>
+</head>
+<body>
+    <div class="dashboard-wrapper">
+        <div class="dashboard-container">
+
+            <!-- Header -->
+            <header class="top-header">
+                <img src="images/shark-logo.png" alt="Shark Logo" class="top-logo">
+                <div class="header-right">
+                    <img src="images/notification.png" alt="Notification" class="notif-logo">
+                    <a href="profile.html">
+                        <img src="images/profile.png" alt="Profile" class="notif-logo">
+                    </a>
+                </div>
+            </header>
+
+            <!-- Main sections (scrollable) -->
+            <div class="dashboard-main">
+
+                <!-- Welcome greeting -->
+                <p id="welcomeMsg" style="
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #2E7D32;
+                    margin: 0;
+                ">Welcome back! 🐟</p>
+
+                <!-- Catch Overview -->
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    margin-bottom:10px;
+                ">
+                    <h2 style="margin:0; text-align:left;">Catch Overview</h2>
+                    <select id="timeFilter" style="
+                        padding:5px 8px;
+                        border-radius:6px;
+                        border:1px solid #ccc;
+                        font-size:14px;
+                        cursor:pointer;
+                    ">
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+
+                <!-- Chart -->
+                <div style="height:200px; margin-bottom:15px;">
+                    <canvas id="catchChart"></canvas>
+                </div>
+
+                <!-- AI Fishing Forecast — dynamically colored by weather -->
+                <div class="forecast-container">
+                    <h3 style="margin-bottom:10px; white-space:nowrap;">AI Fishing Forecast</h3>
+                    <div style="display:flex; gap:10px;" id="fishingForecast">
+                        <div class="forecast-card" style="background:#e0e0e0;">
+                            <span>6 AM</span><span>--</span>
+                        </div>
+                        <div class="forecast-card" style="background:#e0e0e0;">
+                            <span>10 AM</span><span>--</span>
+                        </div>
+                        <div class="forecast-card" style="background:#e0e0e0;">
+                            <span>2 PM</span><span>--</span>
+                        </div>
+                        <div class="forecast-card" style="background:#e0e0e0;">
+                            <span>6 PM</span><span>--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weather Forecast — real-time -->
+                <div class="weather-container">
+                    <h3>🌤 Weather Forecast</h3>
+                    <p class="weather-location" id="weatherLocation">📍 Detecting location...</p>
+                    <div id="weatherContent">
+                        <p class="weather-loading">Loading weather data...</p>
+                    </div>
+                </div>
+
+                <!-- Warning Section — dynamic -->
+                <div class="warning-container safe" id="warningBox">
+                    <h3>✅ Conditions</h3>
+                    <p id="warningText">Loading weather alerts...</p>
+                </div>
+
+            </div>
+
+            <!-- Bottom Navigation Bar -->
+            <nav class="bottom-nav">
+                <a href="dashboard.html" class="bottom-nav-item">
+                    <img src="images/home.png" alt="Home" class="nav-icon">
+                    <span>Home</span>
+                </a>
+                <a href="log-catch.html" class="bottom-nav-item">
+                    <img src="images/log-catch.png" alt="Log Catch" class="nav-icon">
+                    <span>Log Catch</span>
+                </a>
+                <a href="history.html" class="bottom-nav-item">
+                    <img src="images/history.png" alt="History" class="nav-icon">
+                    <span>History</span>
+                </a>
+                <a href="chat.html" class="bottom-nav-item">
+                    <img src="images/chat.png" alt="Chat" class="nav-icon">
+                    <span>Chat</span>
+                </a>
+            </nav>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="auth.js"></script>
+    <script>
+        let currentUser = null;
+        let catchChart = null;
+
+        // ─── Chart data sets ──────────────────────────────────────────
+        const dataSets = {
+            weekly: { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], data: new Array(7).fill(0) },
+            monthly: { labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'], data: new Array(4).fill(0) },
+            yearly: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], data: new Array(12).fill(0) },
+        };
+
+        // ─── Init chart ───────────────────────────────────────────────
+        const ctx = document.getElementById('catchChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, "rgba(75, 192, 192, 0.4)");
+        gradient.addColorStop(1, "rgba(75, 192, 192, 0)");
+
+        catchChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dataSets.weekly.labels,
+                datasets: [{
+                    label: 'Fish Caught',
+                    data: dataSets.weekly.data,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: gradient,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        document.getElementById('timeFilter').addEventListener('change', function () {
+            const selected = dataSets[this.value];
+            catchChart.data.labels = selected.labels;
+            catchChart.data.datasets[0].data = selected.data;
+            catchChart.update();
+        });
+
+        // ─── Load catch data ──────────────────────────────────────────
+        async function loadCatchData() {
+            try {
+                const res = await fetch('/api/my-catches');
+                if (!res.ok) return;
+                const catches = await res.json();
+
+                const weeklyCounts = new Array(7).fill(0);
+                catches.forEach(c => {
+                    const d = new Date(c.date);
+                    if (!isNaN(d)) {
+                        const day = d.getDay();
+                        weeklyCounts[day === 0 ? 6 : day - 1]++;
+                    }
+                });
+
+                const yearlyCounts = new Array(12).fill(0);
+                catches.forEach(c => {
+                    const d = new Date(c.date);
+                    if (!isNaN(d)) yearlyCounts[d.getMonth()]++;
+                });
+
+                dataSets.weekly.data = weeklyCounts;
+                dataSets.yearly.data = yearlyCounts;
+                catchChart.data.datasets[0].data = weeklyCounts;
+                catchChart.update();
+            } catch (err) {
+                console.error('Could not load catch data:', err);
+            }
+        }
+
+        // ─── Weather code → description + emoji ──────────────────────
+        function describeWeather(code) {
+            if (code === 0) return { text: 'Clear Sky', emoji: '☀️' };
+            if (code <= 2) return { text: 'Partly Cloudy', emoji: '⛅' };
+            if (code === 3) return { text: 'Overcast', emoji: '☁️' };
+            if (code <= 49) return { text: 'Foggy', emoji: '🌫️' };
+            if (code <= 59) return { text: 'Drizzle', emoji: '🌦️' };
+            if (code <= 69) return { text: 'Rain', emoji: '🌧️' };
+            if (code <= 79) return { text: 'Snow / Sleet', emoji: '🌨️' };
+            if (code <= 84) return { text: 'Rain Showers', emoji: '🌧️' };
+            if (code <= 94) return { text: 'Thunderstorm', emoji: '⛈️' };
+            return { text: 'Severe Storm', emoji: '🌩️' };
+        }
+
+        // ─── Fishing score based on weather ──────────────────────────
+        function fishingScore(weatherCode, windSpeed, rain) {
+            if (weatherCode >= 80) return { label: 'Dangerous', color: '#ffcccc', textColor: '#c62828' };
+            if (weatherCode >= 61) return { label: 'Poor', color: '#ffd6d6', textColor: '#c62828' };
+            if (windSpeed > 40) return { label: 'Poor', color: '#ffd6d6', textColor: '#c62828' };
+            if (windSpeed > 25 || rain > 3) return { label: 'Fair', color: '#ffe5b4', textColor: '#e65100' };
+            if (weatherCode <= 2 && windSpeed <= 15) return { label: 'Excellent', color: '#b2f2bb', textColor: '#1b5e20' };
+            return { label: 'Good', color: '#d4edda', textColor: '#2E7D32' };
+        }
+
+        // ─── Build warning message ────────────────────────────────────
+        function buildWarning(weatherCode, windSpeed, temp, rain) {
+            const warnings = [];
+
+            if (weatherCode >= 95)
+                warnings.push('⛈️ Severe thunderstorm detected. Do NOT go fishing.');
+            else if (weatherCode >= 80)
+                warnings.push('🌧️ Heavy rain and showers. Fishing is not recommended.');
+            else if (weatherCode >= 61)
+                warnings.push('🌧️ Rain expected. Use caution on the water.');
+
+            if (windSpeed > 40)
+                warnings.push('💨 Strong winds above 40 km/h. Dangerous for small boats.');
+            else if (windSpeed > 25)
+                warnings.push('💨 Moderate winds. Secure equipment before heading out.');
+
+            if (temp > 36)
+                warnings.push('🌡️ Extreme heat. Stay hydrated and avoid midday fishing.');
+            else if (temp < 18)
+                warnings.push('🧊 Cool temperatures. Dress warmly on the water.');
+
+            if (rain > 5)
+                warnings.push('🌊 High rainfall may cause poor water visibility.');
+
+            const box = document.getElementById('warningBox');
+            const txt = document.getElementById('warningText');
+
+            if (warnings.length === 0) {
+                box.className = 'warning-container safe';
+                box.querySelector('h3').textContent = '✅ Safe Conditions';
+                txt.textContent = 'Weather looks good for fishing today!';
+            } else if (weatherCode >= 80 || windSpeed > 40) {
+                box.className = 'warning-container danger';
+                box.querySelector('h3').textContent = '⚠️ WARNING!!';
+                txt.innerHTML = warnings.join('<br>');
+            } else {
+                box.className = 'warning-container moderate';
+                box.querySelector('h3').textContent = '⚠️ Caution';
+                txt.innerHTML = warnings.join('<br>');
+            }
+        }
+
+        // ─── Reverse geocode location name ────────────────────────────
+        async function getLocationName(lat, lng) {
+            try {
+                const res = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+                    { headers: { 'Accept-Language': 'en' } }
+                );
+                const data = await res.json();
+                const a = data.address || {};
+                return [
+                    a.city || a.municipality || a.town || a.county,
+                    a.state,
+                    a.country
+                ].filter(Boolean).join(', ') || 'Philippines';
+            } catch {
+                return 'Philippines';
+            }
+        }
+
+        // ─── Fetch real-time weather from Open-Meteo (free, no key) ──
+        async function loadWeather(lat, lng) {
+            try {
+                const locationName = await getLocationName(lat, lng);
+                document.getElementById('weatherLocation').textContent = `📍 ${locationName}`;
+
+                // Fetch current weather + hourly forecast
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
+                    `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,precipitation` +
+                    `&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation` +
+                    `&wind_speed_unit=kmh&timezone=Asia%2FManila&forecast_days=1`;
+
+                const res = await fetch(url);
+                const data = await res.json();
+                const curr = data.current;
+
+                const temp = Math.round(curr.temperature_2m);
+                const humidity = curr.relative_humidity_2m;
+                const wind = Math.round(curr.wind_speed_10m);
+                const code = curr.weather_code;
+                const rain = curr.precipitation || 0;
+                const { text: weatherText, emoji } = describeWeather(code);
+
+                // ── Render weather card ───────────────────────────────
+                document.getElementById('weatherContent').innerHTML = `
+                        <div class="weather-main-row">
+                            <span style="font-size:36px;">${emoji}</span>
+                            <div>
+                                <div class="weather-temp">${temp}°C</div>
+                                <div class="weather-desc">${weatherText}</div>
+                            </div>
+                        </div>
+                        <div class="weather-details">
+                            <div>💨 Wind: ${wind} km/h</div>
+                            <div>💧 Humidity: ${humidity}%</div>
+                            <div>🌧️ Rain: ${rain} mm</div>
+                            <div>📍 ${locationName.split(',')[0]}</div>
+                        </div>
+                    `;
+
+                // ── Update warnings ───────────────────────────────────
+                buildWarning(code, wind, temp, rain);
+
+                // ── Update AI Fishing Forecast cards ──────────────────
+                // Use hourly data for 6AM, 10AM, 2PM, 6PM
+                const hours = data.hourly;
+                const targets = [6, 10, 14, 18];
+                const labels = ['6 AM', '10 AM', '2 PM', '6 PM'];
+                const cards = document.querySelectorAll('#fishingForecast .forecast-card');
+
+                targets.forEach((hour, i) => {
+                    const idx = hours.time.findIndex(t => new Date(t).getHours() === hour);
+                    if (idx === -1) return;
+
+                    const hCode = hours.weather_code[idx];
+                    const hWind = hours.wind_speed_10m[idx];
+                    const hRain = hours.precipitation[idx];
+                    const score = fishingScore(hCode, hWind, hRain);
+                    const { emoji: hEmoji } = describeWeather(hCode);
+
+                    cards[i].style.background = score.color;
+                    cards[i].innerHTML = `
+                            <span>${labels[i]}</span>
+                            <span style="font-size:16px;">${hEmoji}</span>
+                            <span style="color:${score.textColor}; font-weight:600;">${score.label}</span>
+                        `;
+                });
+
+            } catch (err) {
+                document.getElementById('weatherContent').innerHTML =
+                    '<p style="color:red; font-size:13px;">⚠️ Could not load weather data.</p>';
+                console.error('Weather error:', err);
+            }
+        }
+
+        // ─── Get user location then load weather ──────────────────────
+        function initWeather() {
+            // Default to Philippines center if geolocation denied
+            const defaultLat = 14.5995;
+            const defaultLng = 120.9842; // Manila
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => loadWeather(pos.coords.latitude, pos.coords.longitude),
+                    () => loadWeather(defaultLat, defaultLng),
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            } else {
+                loadWeather(defaultLat, defaultLng);
+            }
+        }
+
+        // ─── Main init ────────────────────────────────────────────────
+        async function init() {
+            currentUser = await requireLogin();
+            if (!currentUser) return;
+
+            document.getElementById('welcomeMsg').textContent =
+                `Welcome back, ${currentUser.name}! 🐟`;
+            document.title = `EcoFin — ${currentUser.name}`;
+
+            await loadCatchData();
+            initWeather();
+
+            // Refresh weather every 10 minutes
+            setInterval(initWeather, 10 * 60 * 1000);
+        }
+
+        init();
+    </script>
+
+</body>
+</html>

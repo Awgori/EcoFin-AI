@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Log Catch</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map {
+            width: 100%;
+            height: 220px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            margin-top: 6px;
+            z-index: 0;
+        }
+
+        #locationDisplay {
+            font-size: 12px;
+            color: #2E7D32;
+            margin-top: 6px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <div class="dashboard-container">
+
+            <!-- Header -->
+            <header class="top-header">
+                <img src="images/shark-logo.png" alt="Shark Logo" class="top-logo">
+                <div class="header-right">
+                    <img src="images/notification.png" alt="Notification" class="notif-logo">
+                    <a href="profile.html">
+                        <img src="images/profile.png" alt="Profile" class="notif-logo">
+                    </a>
+                </div>
+            </header>
+
+            <div class="dashboard-main">
+                <h2>Log New Catch</h2>
+                <div class="form-container">
+                    <form class="log-catch-form" onsubmit="return false;">
+
+                        <div class="input-group">
+                            <label>Catch Source</label>
+                            <select id="source">
+                                <option>Pond</option>
+                                <option>River</option>
+                                <option>Sea</option>
+                                <option>Lake</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Location on Map</label>
+                            <div id="map"></div>
+                            <p id="locationDisplay">📍 Detecting your location...</p>
+                            <!-- location = reverse-geocoded area name from map pin -->
+                            <input type="hidden" id="lat">
+                            <input type="hidden" id="lng">
+                            <input type="hidden" id="locationName">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Species of Fish</label>
+                            <input type="text" id="fish" placeholder="Enter species">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Total Weight (kg)</label>
+                            <input type="number" id="weight" step="0.01" placeholder="Enter total weight">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Size Range (cm)</label>
+                            <div class="size-range">
+                                <input type="number" id="sizeMin" placeholder="Min">
+                                <input type="number" id="sizeMax" placeholder="Max">
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Catch Date & Time</label>
+                            <input type="datetime-local" id="date">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Depth of Catch (m)</label>
+                            <input type="number" id="depth" step="0.1" placeholder="Enter depth">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Upload Document / Photo</label>
+                            <input type="file">
+                        </div>
+
+                        <div class="confirm-checkbox">
+                            <input type="checkbox" id="confirm-regulations">
+                            <label for="confirm-regulations">
+                                I confirm this catch complies with fishing regulations
+                            </label>
+                        </div>
+
+                        <button class="submit-btn" id="submitBtn" type="button" onclick="submitCatch()">
+                            Submit Catch Log
+                        </button>
+
+                    </form>
+                </div>
+            </div>
+
+            <nav class="bottom-nav">
+                <a href="dashboard.html" class="bottom-nav-item">
+                    <img src="images/home.png" class="nav-icon"><span>Home</span>
+                </a>
+                <a href="log-catch.html" class="bottom-nav-item active">
+                    <img src="images/log-catch.png" class="nav-icon"><span>Log Catch</span>
+                </a>
+                <a href="history.html" class="bottom-nav-item">
+                    <img src="images/history.png" class="nav-icon"><span>History</span>
+                </a>
+                <a href="chat.html" class="bottom-nav-item">
+                    <img src="images/chat.png" class="nav-icon"><span>Chat</span>
+                </a>
+            </nav>
+
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="auth.js"></script>
+    <script>
+
+        let map = null;
+        let marker = null;
+
+        function initMap() {
+            // Step 1: Render map immediately at Philippines default
+            map = L.map('map').setView([12.8797, 121.7740], 6);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19,
+            }).addTo(map);
+
+            map.on('click', (e) => placeMarker(e.latlng.lat, e.latlng.lng));
+
+            // Step 2: Fly to user's real location once detected
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        map.flyTo([lat, lng], 15, { duration: 1.5 });
+                        placeMarker(lat, lng);
+                    },
+                    () => {
+                        document.getElementById('locationDisplay').textContent =
+                            '📍 Location access denied. Tap the map to set your location.';
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                document.getElementById('locationDisplay').textContent =
+                    '📍 Geolocation not supported. Tap the map to set your location.';
+            }
+        }
+
+        function placeMarker(lat, lng) {
+            if (marker) {
+                marker.setLatLng([lat, lng]);
+            } else {
+                marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                marker.on('dragend', (e) => {
+                    const pos = e.target.getLatLng();
+                    updateLocation(pos.lat, pos.lng);
+                });
+            }
+            updateLocation(lat, lng);
+        }
+
+        // ─── Reverse geocode → get real area name, not Pond/River/Sea ───
+        async function updateLocation(lat, lng) {
+            document.getElementById('lat').value = lat;
+            document.getElementById('lng').value = lng;
+            document.getElementById('locationDisplay').textContent = '📍 Getting location name...';
+
+            try {
+                const res = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+                    { headers: { 'Accept-Language': 'en' } }
+                );
+                const data = await res.json();
+
+                // ✅ Build a short readable area:
+                // prefer: suburb/city/state/country — skip full street address
+                const a = data.address || {};
+                const shortName = [
+                    a.suburb || a.village || a.town || a.city_district,
+                    a.city || a.municipality || a.county,
+                    a.state,
+                    a.country
+                ].filter(Boolean).join(', ') || data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+                document.getElementById('locationName').value = shortName;
+                document.getElementById('locationDisplay').textContent = `📍 ${shortName}`;
+            } catch {
+                const coords = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                document.getElementById('locationName').value = coords;
+                document.getElementById('locationDisplay').textContent = `📍 ${coords}`;
+            }
+        }
+
+        async function init() {
+            const user = await requireLogin();
+            if (!user) return;
+            initMap();
+        }
+
+        async function submitCatch() {
+            const checkbox = document.getElementById('confirm-regulations');
+            if (!checkbox.checked) {
+                alert('Please confirm fishing regulations.');
+                return;
+            }
+
+            // ✅ location = map pin area (e.g. "Caloocan, Metro Manila, Philippines")
+            // ✅ source   = Pond / River / Sea / Lake (separate field)
+            const locationName = document.getElementById('locationName').value || 'Unknown';
+
+            const catchData = {
+                fish: document.getElementById('fish').value,
+                weight: document.getElementById('weight').value,
+                size: document.getElementById('sizeMin').value + 'cm - ' +
+                    document.getElementById('sizeMax').value + 'cm',
+                location: locationName,
+                source: document.getElementById('source').value,
+                depth: document.getElementById('depth').value,
+                date: document.getElementById('date').value || new Date().toISOString(),
+                lat: document.getElementById('lat').value,
+                lng: document.getElementById('lng').value,
+            };
+
+            if (!catchData.fish) {
+                alert('Please enter fish species.');
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = 'Submitting...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/log-catch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(catchData)
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    alert('✅ Catch logged successfully!');
+                    window.location.href = 'history.html';
+                }
+            } catch (err) {
+                alert('❌ Server error. Make sure backend is running.');
+                btn.innerText = 'Submit Catch Log';
+                btn.disabled = false;
+            }
+        }
+
+        init();
+    </script>
+
+</body>
+</html>

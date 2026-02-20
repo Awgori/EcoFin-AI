@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catch History</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+            .history-header h2 {
+                margin: 0;
+                font-size: 18px;
+                color: #1a1a1a;
+            }
+
+        .btn-clear-history {
+            background: transparent;
+            color: #c0392b;
+            border: 1.5px solid #c0392b;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.3px;
+            transition: all 0.2s;
+        }
+
+            .btn-clear-history:hover {
+                background: #c0392b;
+                color: white;
+            }
+
+        /* Search bar */
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 9px 12px;
+            margin-bottom: 16px;
+            gap: 8px;
+            border: 1px solid #e8e8e8;
+        }
+
+            .search-bar span {
+                color: #999;
+                font-size: 14px;
+            }
+
+            .search-bar input {
+                border: none;
+                background: transparent;
+                outline: none;
+                font-size: 14px;
+                width: 100%;
+                color: #333;
+            }
+
+        /* Modal */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+
+            .modal-backdrop.show {
+                display: flex;
+            }
+
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            padding: 28px 24px 22px;
+            width: 88%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        }
+
+            .modal-box h3 {
+                margin: 0 0 8px;
+                font-size: 16px;
+                color: #1a1a1a;
+            }
+
+            .modal-box p {
+                color: #777;
+                font-size: 13px;
+                margin-bottom: 22px;
+                line-height: 1.5;
+            }
+
+        .modal-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+            .modal-btns button {
+                flex: 1;
+                padding: 10px;
+                border: none;
+                border-radius: 7px;
+                font-weight: 600;
+                cursor: pointer;
+                font-size: 13px;
+                transition: opacity 0.2s;
+            }
+
+                .modal-btns button:hover {
+                    opacity: 0.85;
+                }
+
+        .btn-cancel-modal {
+            background: #f0f0f0;
+            color: #555;
+        }
+
+        .btn-confirm-modal {
+            background: #c0392b;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <div class="dashboard-container">
+
+            <!-- Header -->
+            <header class="top-header">
+                <img src="images/shark-logo.png" alt="Shark Logo" class="top-logo">
+                <div class="header-right">
+                    <img src="images/notification.png" alt="Notification" class="notif-logo">
+                    <a href="profile.html">
+                        <img src="images/profile.png" alt="Profile" class="notif-logo">
+                    </a>
+                </div>
+            </header>
+
+            <!-- Main -->
+            <div class="dashboard-main">
+
+                <!-- Title + Clear button -->
+                <div class="history-header">
+                    <h2 id="historyTitle">Catch History</h2>
+                    <button class="btn-clear-history" onclick="showClearModal()">Clear History</button>
+                </div>
+
+                <!-- Search -->
+                <div class="search-bar">
+                    <span>🔍</span>
+                    <input id="searchInput"
+                           type="text"
+                           placeholder="Search by fish, location..."
+                           oninput="filterCatches()">
+                </div>
+
+                <!-- Catch List -->
+                <div id="catchList">
+                    <p style="text-align:center; color:#999; font-size:14px;">Loading catches...</p>
+                </div>
+
+            </div>
+
+            <!-- Bottom Nav -->
+            <nav class="bottom-nav">
+                <a href="dashboard.html" class="bottom-nav-item">
+                    <img src="images/home.png" alt="Home" class="nav-icon">
+                    <span>Home</span>
+                </a>
+                <a href="log-catch.html" class="bottom-nav-item">
+                    <img src="images/log-catch.png" alt="Log Catch" class="nav-icon">
+                    <span>Log Catch</span>
+                </a>
+                <a href="history.html" class="bottom-nav-item active">
+                    <img src="images/history.png" alt="History" class="nav-icon">
+                    <span>History</span>
+                </a>
+                <a href="chat.html" class="bottom-nav-item">
+                    <img src="images/chat.png" alt="Chat" class="nav-icon">
+                    <span>Chat</span>
+                </a>
+            </nav>
+
+        </div>
+    </div>
+
+    <!-- Confirm Clear Modal -->
+    <div class="modal-backdrop" id="clearModal">
+        <div class="modal-box">
+            <h3>Clear Catch History</h3>
+            <p>This will permanently delete all your logged catches. This action cannot be undone.</p>
+            <div class="modal-btns">
+                <button class="btn-cancel-modal" onclick="hideClearModal()">Cancel</button>
+                <button class="btn-confirm-modal" onclick="confirmClear()">Clear All</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function requireLogin() {
+            try {
+                const res = await fetch('/api/me');
+                if (!res.ok) { window.location.href = '/login.html'; return null; }
+                return await res.json();
+            } catch {
+                window.location.href = '/login.html';
+                return null;
+            }
+        }
+
+        let allCatches = [];
+
+        async function init() {
+            const user = await requireLogin();
+            if (!user) return;
+
+            document.getElementById('historyTitle').textContent = `${user.name}'s Catch History`;
+            document.title = `History — ${user.name}`;
+
+            try {
+                const res = await fetch('/api/my-catches');
+                const data = await res.json();
+                allCatches = Array.isArray(data) ? data : Object.values(data);
+                renderCatches(allCatches);
+            } catch {
+                document.getElementById('catchList').innerHTML =
+                    '<p style="text-align:center; color:red; font-size:14px;">Could not load catches.</p>';
+            }
+        }
+
+        function renderCatches(catches) {
+            const container = document.getElementById('catchList');
+
+            if (!catches || !catches.length) {
+                container.innerHTML = `
+                        <div style="text-align:center; padding:48px 0; color:#bbb;">
+                            <p style="font-size:36px; margin-bottom:10px;">🐟</p>
+                            <p style="font-size:14px; color:#999; margin-bottom:16px;">No catches found.</p>
+                            <a href="log-catch.html" style="
+                                display:inline-block;
+                                padding:10px 22px;
+                                background:#2E7D32;
+                                color:white;
+                                border-radius:7px;
+                                text-decoration:none;
+                                font-size:13px;
+                                font-weight:600;
+                            ">Log Your First Catch</a>
+                        </div>`;
+                return;
+            }
+
+            const reversed = [...catches].reverse();
+
+            container.innerHTML = reversed.map((c, i) => `
+                    <div class="catch-record-container">
+                        <h3>🐟 Catch #${catches.length - i}</h3>
+                        <div class="record-row">
+                            <span class="record-label">Species:</span>
+                            <span class="record-value">${c.fish || '--'}</span>
+                        </div>
+                        <div class="record-row">
+                            <span class="record-label">Weight:</span>
+                            <span class="record-value">${c.weight || '--'}</span>
+                        </div>
+                        <div class="record-row">
+                            <span class="record-label">Size:</span>
+                            <span class="record-value">${c.size || '--'}</span>
+                        </div>
+                        <div class="record-row">
+                            <span class="record-label">Location:</span>
+                            <span class="record-value">${c.location || '--'}</span>
+                        </div>
+                        <div class="record-row">
+                            <span class="record-label">Date:</span>
+                            <span class="record-value">${c.date || '--'}</span>
+                        </div>
+                        <div class="record-row">
+                            <span class="record-label">Source:</span>
+                            <span class="record-value">${c.source || '--'}</span>
+                        </div>
+                        <div class="record-row">
+                            <span class="record-label">Depth:</span>
+                            <span class="record-value">${c.depth || '--'}</span>
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        function filterCatches() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if (!query) { renderCatches(allCatches); return; }
+            const filtered = allCatches.filter(c =>
+                (c.fish && c.fish.toLowerCase().includes(query)) ||
+                (c.location && c.location.toLowerCase().includes(query)) ||
+                (c.date && c.date.toLowerCase().includes(query)) ||
+                (c.source && c.source.toLowerCase().includes(query))
+            );
+            renderCatches(filtered);
+        }
+
+        function showClearModal() {
+            document.getElementById('clearModal').classList.add('show');
+        }
+
+        function hideClearModal() {
+            document.getElementById('clearModal').classList.remove('show');
+        }
+
+        async function confirmClear() {
+            hideClearModal();
+            try {
+                const res = await fetch('/api/clear-catches', { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    allCatches = [];
+                    renderCatches([]);
+                } else {
+                    alert('Failed to clear history. Please try again.');
+                }
+            } catch {
+                alert('Error clearing history.');
+            }
+        }
+
+        init();
+    </script>
+
+</body>
+</html>
