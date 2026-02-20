@@ -183,12 +183,4 @@ Add this to your Firebase Realtime Database rules for better query performance:
 
 ---
 
-## 👥 Authors
 
-Developed as part of a fisheries management capstone project.
-
----
-
-## 📄 License
-
-This project is for academic and demonstration purposes.
