@@ -5,6 +5,171 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #2E7D32;
+        }
+
+        .edit-btn {
+            background: none;
+            border: 1px solid #2E7D32;
+            color: #2E7D32;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+
+        .edit-btn:hover {
+            background: #2E7D32;
+            color: white;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 360px;
+        }
+
+        .modal-box h3 {
+            margin: 0 0 16px;
+            color: #1B5E20;
+            font-size: 16px;
+        }
+
+        .modal-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+        }
+
+        .modal-box input:focus {
+            outline: none;
+            border-color: #2E7D32;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .btn-save {
+            background: #2E7D32;
+            color: white;
+        }
+
+        .btn-cancel {
+            background: #f1f1f1;
+            color: #333;
+        }
+
+        /* WhatsApp number modal */
+        .wa-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .wa-modal-overlay.active {
+            display: flex;
+        }
+
+        .connect-btn {
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .connect-btn.connected {
+            background: #e8f5e9;
+            color: #2E7D32;
+        }
+
+        .connect-btn.not-connected {
+            background: #f1f1f1;
+            color: #555;
+        }
+
+        .connect-btn.wa-btn {
+            background: #e8f5e9;
+            color: #25D366;
+        }
+
+        .connect-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .connect-row:last-child {
+            border-bottom: none;
+        }
+
+        .connect-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .personal-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .personal-details-header h3 {
+            margin: 0;
+        }
+    </style>
 </head>
 <body>
     <div class="dashboard-wrapper">
@@ -21,12 +186,11 @@
                 </div>
             </header>
 
-            <!-- Main scrollable section -->
             <div class="dashboard-main">
 
                 <!-- Profile Header -->
                 <div class="profile-header">
-                    <img src="images/profile.png" class="profile-avatar">
+                    <img id="profileAvatar" src="images/profile.png" class="profile-avatar">
                     <h2 id="profileName">Loading...</h2>
                     <p id="profileLocation" style="color:#666; font-size:14px; margin:4px 0 0 0;"></p>
                 </div>
@@ -53,7 +217,10 @@
 
                 <!-- Personal Details -->
                 <div class="catch-record-container">
-                    <h3>Personal Details</h3>
+                    <div class="personal-details-header">
+                        <h3>Personal Details</h3>
+                        <button class="edit-btn" onclick="openEditModal()">✏️ Edit</button>
+                    </div>
                     <div class="record-row">
                         <span class="record-label">Full Name:</span>
                         <span class="record-value" id="detailName">--</span>
@@ -81,27 +248,29 @@
                 </div>
 
                 <!-- Connected Accounts -->
-                <div class="connect-section">
+                <div class="catch-record-container">
                     <h3>Connected Accounts</h3>
 
                     <div class="connect-row">
-                        <img src="images/chat.png" style="width:24px; height:24px;">
-                        <span>Facebook Messenger</span>
-                        <span id="messengerStatus" class="connect-btn messenger-btn">
-                            Not Connected
-                        </span>
+                        <div class="connect-left">
+                            <img src="images/chat.png" style="width:22px; height:22px;">
+                            <span>Messenger</span>
+                        </div>
+                        <span id="messengerStatus" class="connect-btn connected">✅ Connected</span>
                     </div>
 
                     <div class="connect-row">
-                        <img src="images/home.png" style="width:24px; height:24px;">
-                        <span>WhatsApp</span>
-                        <span id="whatsappStatus" class="connect-btn whatsapp-btn">
-                            Not Connected
-                        </span>
+                        <div class="connect-left">
+                            <img src="images/home.png" style="width:22px; height:22px;">
+                            <span>WhatsApp</span>
+                        </div>
+                        <button id="whatsappBtn" class="connect-btn wa-btn" onclick="openWAModal()">
+                            Enter Number
+                        </button>
                     </div>
                 </div>
 
-                <!-- Logout Button -->
+                <!-- Logout -->
                 <a href="/auth/logout" style="
                     display: block;
                     text-align: center;
@@ -117,7 +286,7 @@
 
             </div>
 
-            <!-- Bottom Navigation Bar -->
+            <!-- Bottom Nav -->
             <nav class="bottom-nav">
                 <a href="dashboard.html" class="bottom-nav-item">
                     <img src="images/home.png" alt="Home" class="nav-icon">
@@ -140,53 +309,69 @@
         </div>
     </div>
 
+    <!-- Edit Personal Details Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-box">
+            <h3>✏️ Edit Personal Details</h3>
+            <input type="text" id="editName" placeholder="Full Name">
+            <input type="email" id="editEmail" placeholder="Email address">
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+                <button class="btn-save" onclick="saveDetails()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WhatsApp Number Modal -->
+    <div class="wa-modal-overlay" id="waModal">
+        <div class="modal-box">
+            <h3>📱 Connect WhatsApp</h3>
+            <input type="tel" id="waNumber" placeholder="e.g. 639171234567">
+            <p style="font-size:12px; color:#888; margin: -6px 0 12px;">Enter your number with country code, no + sign</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeWAModal()">Cancel</button>
+                <button class="btn-save" onclick="saveWhatsApp()">Connect</button>
+            </div>
+        </div>
+    </div>
+
     <script src="auth.js"></script>
     <script>
+        let currentUser = null;
+
         async function init() {
-            const user = await requireLogin();
-            if (!user) return;
+            currentUser = await requireLogin();
+            if (!currentUser) return;
 
-            // ─── Profile header ───────────────────────────────────────
-            document.getElementById('profileName').textContent = user.name;
-            document.getElementById('profileLocation').textContent = user.location || 'Philippines';
-            document.title = `Profile — ${user.name}`;
-
-            // ─── Stat cards ───────────────────────────────────────────
-            document.getElementById('totalCatches').textContent = user.totalCatches || 0;
-            document.getElementById('successRate').textContent = (user.successRate || 0) + '%';
-            document.getElementById('achievements').textContent = user.achievements || 0;
-            document.getElementById('fishingHours').textContent = user.fishingHours || 0;
-
-            // ─── Personal details ─────────────────────────────────────
-            document.getElementById('detailName').textContent = user.name;
-            document.getElementById('detailEmail').textContent = user.email || 'Not provided';
-            document.getElementById('detailLocation').textContent = user.location || 'Philippines';
-            document.getElementById('detailMember').textContent = user.memberSince || '--';
-
-            // ─── Connected accounts ───────────────────────────────────
-            const messengerBtn = document.getElementById('messengerStatus');
-            const whatsappBtn = document.getElementById('whatsappStatus');
-
-            if (user.messengerConnected) {
-                messengerBtn.textContent = '✅ Connected';
-                messengerBtn.classList.add('connected');
-            }
-            if (user.whatsappConnected) {
-                whatsappBtn.textContent = '✅ Connected';
-                whatsappBtn.classList.add('connected');
+            // ── Try to load Facebook profile picture ─────────────────
+            if (currentUser.facebook_id) {
+                const avatar = document.getElementById('profileAvatar');
+                const fbPic = `https://graph.facebook.com/${currentUser.facebook_id}/picture?type=large`;
+                const testImg = new Image();
+                testImg.onload = () => { avatar.src = fbPic; };
+                testImg.onerror = () => { /* keep default */ };
+                testImg.src = fbPic;
             }
 
-            // ─── Latest catch ─────────────────────────────────────────
+            // ── Profile header ────────────────────────────────────────
+            document.getElementById('profileName').textContent = currentUser.name || '--';
+            document.getElementById('profileLocation').textContent = currentUser.location || 'Philippines';
+            document.title = `Profile — ${currentUser.name}`;
+
+            // ── Fetch real catch count from API ───────────────────────
+            let catchCount = 0;
             try {
                 const res = await fetch('/api/my-catches');
                 const catches = await res.json();
+                catchCount = catches.length;
 
+                // ── Latest catch ──────────────────────────────────────
                 if (catches.length) {
                     const latest = catches[catches.length - 1];
                     document.getElementById('catchFish').textContent =
-                        `${latest.fish} — ${latest.weight} (${latest.size})`;
+                        `${latest.fish} — ${latest.weight} kg (${latest.size})`;
                     document.getElementById('catchLocation').textContent =
-                        `📍 ${latest.location}`;
+                        `📍 ${latest.location || 'Unknown'}`;
                     document.getElementById('catchDate').textContent =
                         `📅 ${latest.date}`;
                 } else {
@@ -197,16 +382,124 @@
             } catch (err) {
                 console.error('Could not load catches:', err);
             }
+
+            // ── Stat cards ────────────────────────────────────────────
+            document.getElementById('totalCatches').textContent = catchCount;
+            document.getElementById('successRate').textContent =
+                catchCount > 0 ? Math.min(100, Math.round((catchCount / (catchCount + 2)) * 100)) + '%' : '0%';
+            document.getElementById('achievements').textContent =
+                catchCount >= 20 ? '🥇' : catchCount >= 10 ? '🥈' : catchCount >= 5 ? '🥉' : catchCount;
+            document.getElementById('fishingHours').textContent =
+                Math.round(catchCount * 1.5);
+
+            // ── Personal details ──────────────────────────────────────
+            document.getElementById('detailName').textContent = currentUser.name || '--';
+            document.getElementById('detailEmail').textContent = currentUser.email || 'Not provided';
+            document.getElementById('detailLocation').textContent = currentUser.location || 'Philippines';
+            document.getElementById('detailMember').textContent = currentUser.member_since || '--';
+
+            // ── Connected accounts ────────────────────────────────────
+            // Messenger — always connected since they logged in with Facebook
+            const messengerStatus = document.getElementById('messengerStatus');
+            messengerStatus.textContent = '✅ Connected';
+            messengerStatus.className = 'connect-btn connected';
+
+            // WhatsApp
+            const waBtn = document.getElementById('whatsappBtn');
+            if (currentUser.whatsapp && currentUser.whatsapp_connected) {
+                waBtn.textContent = `✅ ${currentUser.whatsapp}`;
+                waBtn.className = 'connect-btn connected';
+                waBtn.onclick = null;
+            } else {
+                waBtn.textContent = 'Enter Number';
+                waBtn.className = 'connect-btn wa-btn';
+            }
         }
 
-        // ─── Show success message if redirected from OAuth ────────────
+        // ── Edit Modal ────────────────────────────────────────────────
+        function openEditModal() {
+            document.getElementById('editName').value = currentUser.name || '';
+            document.getElementById('editEmail').value = currentUser.email || '';
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+
+        async function saveDetails() {
+            const name = document.getElementById('editName').value.trim();
+            const email = document.getElementById('editEmail').value.trim();
+
+            if (!name) return alert('Name cannot be empty.');
+
+            try {
+                const res = await fetch('/api/update-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('profileName').textContent = name;
+                    document.getElementById('detailName').textContent = name;
+                    document.getElementById('detailEmail').textContent = email || 'Not provided';
+                    currentUser.name = name;
+                    currentUser.email = email;
+                    closeEditModal();
+                    alert('✅ Profile updated!');
+                } else {
+                    alert('❌ Failed to update. Try again.');
+                }
+            } catch (err) {
+                alert('❌ Error: ' + err.message);
+            }
+        }
+
+        // ── WhatsApp Modal ────────────────────────────────────────────
+        function openWAModal() {
+            document.getElementById('waModal').classList.add('active');
+        }
+
+        function closeWAModal() {
+            document.getElementById('waModal').classList.remove('active');
+        }
+
+        async function saveWhatsApp() {
+            const phone = document.getElementById('waNumber').value.trim().replace(/^\+/, '');
+
+            if (!phone || phone.length < 10) return alert('Please enter a valid phone number.');
+
+            try {
+                const res = await fetch('/auth/whatsapp/callback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    const waBtn = document.getElementById('whatsappBtn');
+                    waBtn.textContent = `✅ ${phone}`;
+                    waBtn.className = 'connect-btn connected';
+                    waBtn.onclick = null;
+                    currentUser.whatsapp = phone;
+                    currentUser.whatsapp_connected = true;
+                    closeWAModal();
+                    alert('✅ WhatsApp connected!');
+                } else {
+                    alert('❌ Failed to connect WhatsApp.');
+                }
+            } catch (err) {
+                alert('❌ Error: ' + err.message);
+            }
+        }
+
+        // ── Show messages from redirect params ────────────────────────
         const params = new URLSearchParams(window.location.search);
-        if (params.get('connected') === 'messenger') {
-            alert(`✅ Messenger connected successfully!`);
-        }
-        if (params.get('error')) {
-            alert('❌ Connection failed. Please try again.');
-        }
+        if (params.get('connected') === 'messenger') alert('✅ Messenger connected!');
+        if (params.get('error')) alert('❌ Connection failed. Please try again.');
 
         init();
     </script>

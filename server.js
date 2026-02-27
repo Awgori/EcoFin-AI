@@ -6,7 +6,16 @@ const axios = require('axios');
 const session = require('express-session');
 
 const webhookRoute = require('./src/routes/webhook');
-const { saveUser, db, getCatchesByUser } = require('./src/services/firebase');
+const {
+    saveUser,
+    getUserByFacebookId,
+    getCatchesByUser,
+    updateUser,
+    saveCatch,
+    countCatches,
+    deleteCatches,
+    supabase
+} = require('./src/services/supabase');
 const { handleSystemMessage } = require('./src/services/messengerService');
 
 const app = express();
@@ -30,41 +39,15 @@ app.get('/', (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// FACEBOOK LOGIN — Demo bypass
+// A. Facebook OAuth — Step 1: Redirect to Facebook Login
 // ─────────────────────────────────────────────────────────────
 
-app.get('/auth/facebook', async (req, res) => {
-    try {
-        const snapshot = await db.ref('users/user_001').once('value');
-        const user = snapshot.val();
-        if (!user) return res.redirect('/login.html?error=not_found');
-
-        req.session.userId = 'user_001';
-        req.session.userName = user.name;
-        req.session.loggedIn = true;
-
-        console.log(`[EcoFin] ✅ Demo login as: ${user.name}`);
-        res.redirect('/dashboard.html');
-    } catch (err) {
-        console.error('[EcoFin] ❌ Demo login failed:', err.message);
-        res.redirect('/login.html?error=failed');
-    }
-});
-
-
-// ─────────────────────────────────────────────────────────────
-// A. Messenger OAuth — Step 1: Redirect to Facebook Login
-// ─────────────────────────────────────────────────────────────
-
-app.get('/auth/messenger', (req, res) => {
-    if (!req.session.loggedIn) return res.redirect('/login.html?error=not_logged_in');
-
+app.get('/auth/facebook', (req, res) => {
     const params = new URLSearchParams({
         client_id: process.env.APP_ID,
         redirect_uri: process.env.REDIRECT_URI,
-        scope: 'pages_messaging,pages_show_list',
+        scope: 'public_profile',
         response_type: 'code',
-        state: req.session.userId,
     });
 
     res.redirect(`https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`);
@@ -72,17 +55,19 @@ app.get('/auth/messenger', (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// A. Messenger OAuth — Step 2: Callback, retrieve PSID
+// B. Facebook OAuth — Step 2: Callback
 // ─────────────────────────────────────────────────────────────
 
 app.get('/auth/messenger/callback', async (req, res) => {
     const code = req.query.code;
-    const userId = req.query.state;
 
-    if (!code) return res.redirect('/dashboard.html?error=no_code');
+    if (!code) {
+        console.warn('[EcoFin] ⚠️ No code received — user may have cancelled login');
+        return res.redirect('/login.html?error=cancelled');
+    }
 
     try {
-        // Exchange code for access token
+        // ── Exchange code for access token ────────────────────
         const tokenRes = await axios.get(
             'https://graph.facebook.com/v19.0/oauth/access_token',
             {
@@ -96,14 +81,19 @@ app.get('/auth/messenger/callback', async (req, res) => {
         );
         const accessToken = tokenRes.data.access_token;
 
-        // Get Facebook User ID and name
+        // ── Get Facebook User ID and name ─────────────────────
         const profileRes = await axios.get('https://graph.facebook.com/me', {
-            params: { access_token: accessToken, fields: 'id,name' }
+            params: {
+                access_token: accessToken,
+                fields: 'id,name'
+            }
         });
         const { id: facebookUserId, name } = profileRes.data;
 
-        // Retrieve Messenger PSID
-        let psid = facebookUserId;
+        console.log(`[EcoFin] ✅ Facebook login: ${name} (${facebookUserId})`);
+
+        // ── Try to get Messenger PSID ─────────────────────────
+        let psid = '';
         try {
             const psidRes = await axios.get(
                 `https://graph.facebook.com/v19.0/${facebookUserId}`,
@@ -114,57 +104,82 @@ app.get('/auth/messenger/callback', async (req, res) => {
                     }
                 }
             );
-            psid = psidRes.data?.ids_for_pages?.data?.[0]?.id || facebookUserId;
+            psid = psidRes.data?.ids_for_pages?.data?.[0]?.id || '';
+            if (psid) console.log(`[EcoFin] ✅ PSID retrieved: ${psid}`);
         } catch {
-            console.warn('[EcoFin] Could not get PSID, using Facebook ID as fallback');
+            console.warn('[EcoFin] ⚠️ Could not retrieve PSID');
         }
 
-        // Link PSID to existing user or create new
-        if (userId) {
-            await db.ref(`users/${userId}`).update({
-                psid,
-                facebookId: facebookUserId,
-                messengerConnected: true,
+        // ── Check if user already exists in Supabase ─────────
+        const existingUser = await getUserByFacebookId(facebookUserId);
+        let userId;
+
+        if (existingUser) {
+            userId = existingUser.id;
+            await updateUser(userId, {
+                name,
+                facebook_id: facebookUserId,
+                psid: psid || existingUser.psid || '',
+                messenger_connected: !!psid,
             });
-            console.log(`[EcoFin] ✅ Messenger linked for ${userId} | PSID: ${psid}`);
+            console.log(`[EcoFin] ✅ Existing user updated: ${userId}`);
         } else {
-            const snapshot = await db.ref('users')
-                .orderByChild('facebookId').equalTo(facebookUserId).once('value');
-            let userData = snapshot.val();
-
-            if (userData) {
-                const existingId = Object.keys(userData)[0];
-                await db.ref(`users/${existingId}`).update({ psid, messengerConnected: true });
-            } else {
-                await saveUser(`fb_${facebookUserId}`, {
-                    name,
-                    email: '',
-                    facebookId: facebookUserId,
-                    psid,
-                    location: 'Philippines',
-                    totalCatches: 0,
-                    fishingHours: 0,
-                    achievements: 0,
-                    successRate: 0,
-                    memberSince: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-                    messengerConnected: true,
-                    whatsappConnected: false,
-                });
-            }
+            userId = `fb_${facebookUserId}`;
+            await saveUser(userId, {
+                name,
+                email: '',
+                facebook_id: facebookUserId,
+                psid: psid || '',
+                whatsapp: '',
+                location: 'Philippines',
+                total_catches: 0,
+                fishing_hours: 0,
+                achievements: 0,
+                success_rate: 0,
+                member_since: new Date().toLocaleDateString('en-US', {
+                    month: 'long', year: 'numeric'
+                }),
+                messenger_connected: !!psid,
+                whatsapp_connected: false,
+            });
+            console.log(`[EcoFin] ✅ New user created: ${userId}`);
         }
 
-        res.redirect('/dashboard.html?messenger=connected');
+        // ── Create session ────────────────────────────────────
+        req.session.userId = userId;
+        req.session.userName = name;
+        req.session.loggedIn = true;
+
+        res.redirect('/dashboard.html');
 
     } catch (err) {
-        console.error('[EcoFin] ❌ Messenger auth failed:', err.response?.data || err.message);
-        res.redirect('/dashboard.html?error=messenger_failed');
+        console.error('[EcoFin] ❌ Facebook OAuth failed:', err.response?.data || err.message);
+        res.redirect('/login.html?error=failed');
     }
 });
 
 
 // ─────────────────────────────────────────────────────────────
-// B. WhatsApp Embedded Signup — Callback
-// Phone number comes from Meta, user never types it
+// C. Connect Messenger (after already logged in)
+// ─────────────────────────────────────────────────────────────
+
+app.get('/auth/messenger', (req, res) => {
+    if (!req.session.loggedIn) return res.redirect('/login.html?error=not_logged_in');
+
+    const params = new URLSearchParams({
+        client_id: process.env.APP_ID,
+        redirect_uri: process.env.REDIRECT_URI,
+        scope: 'public_profile',
+        response_type: 'code',
+        state: req.session.userId,
+    });
+
+    res.redirect(`https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`);
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// D. WhatsApp Callback
 // ─────────────────────────────────────────────────────────────
 
 app.post('/auth/whatsapp/callback', async (req, res) => {
@@ -175,24 +190,24 @@ app.post('/auth/whatsapp/callback', async (req, res) => {
         const targetId = userId || req.session.userId;
 
         if (targetId) {
-            // Link WhatsApp to existing user
-            await db.ref(`users/${targetId}`).update({
+            await updateUser(targetId, {
                 whatsapp: phone,
-                wabaId: wabaId || '',
-                whatsappConnected: true,
+                waba_id: wabaId || '',
+                whatsapp_connected: true,
             });
             console.log(`[EcoFin] ✅ WhatsApp linked to ${targetId}: ${phone}`);
         } else {
-            // Create new user from WhatsApp signup
             await saveUser(`wa_${phone}`, {
                 name: name || 'EcoFin User',
                 whatsapp: phone,
-                wabaId: wabaId || '',
-                whatsappConnected: true,
-                messengerConnected: false,
-                totalCatches: 0,
+                waba_id: wabaId || '',
+                whatsapp_connected: true,
+                messenger_connected: false,
+                total_catches: 0,
                 location: 'Philippines',
-                memberSince: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                member_since: new Date().toLocaleDateString('en-US', {
+                    month: 'long', year: 'numeric'
+                }),
             });
             console.log(`[EcoFin] ✅ New WhatsApp user created: ${phone}`);
         }
@@ -206,17 +221,21 @@ app.post('/auth/whatsapp/callback', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// C. Get Current Logged-In User
+// E. Get Current Logged-In User
 // ─────────────────────────────────────────────────────────────
 
 app.get('/api/me', async (req, res) => {
     if (!req.session.loggedIn) return res.status(401).json({ error: 'Not logged in' });
 
     try {
-        const snapshot = await db.ref(`users/${req.session.userId}`).once('value');
-        const user = snapshot.val();
-        if (!user) return res.status(404).json({ error: 'User not found' });
-        res.json({ id: req.session.userId, ...user });
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', req.session.userId)
+            .single();
+
+        if (error || !data) return res.status(404).json({ error: 'User not found' });
+        res.json({ id: req.session.userId, ...data });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -224,15 +243,19 @@ app.get('/api/me', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// D. Get Profile Data (by userId)
+// F. Get Profile Data (by userId)
 // ─────────────────────────────────────────────────────────────
 
 app.get('/api/profile/:userId', async (req, res) => {
     try {
-        const snapshot = await db.ref(`users/${req.params.userId}`).once('value');
-        const user = snapshot.val();
-        if (!user) return res.status(404).json({ error: 'User not found' });
-        res.json(user);
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', req.params.userId)
+            .single();
+
+        if (error || !data) return res.status(404).json({ error: 'User not found' });
+        res.json(data);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -240,7 +263,7 @@ app.get('/api/profile/:userId', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// E. Get Catches for Logged-In User
+// G. Get Catches for Logged-In User
 // ─────────────────────────────────────────────────────────────
 
 app.get('/api/my-catches', async (req, res) => {
@@ -256,7 +279,7 @@ app.get('/api/my-catches', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// F. Get Catches by userId (generic)
+// H. Get Catches by userId (generic)
 // ─────────────────────────────────────────────────────────────
 
 app.get('/api/catches/:userId', async (req, res) => {
@@ -270,7 +293,7 @@ app.get('/api/catches/:userId', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// G. Submit New Catch
+// I. Submit New Catch
 // ─────────────────────────────────────────────────────────────
 
 app.post('/api/log-catch', async (req, res) => {
@@ -290,18 +313,17 @@ app.post('/api/log-catch', async (req, res) => {
         };
 
         const catchId = `catch_${Date.now()}`;
-        await db.ref(`catches/${req.session.userId}/${catchId}`).set(catchData);
+        await saveCatch(req.session.userId, catchId, catchData);
 
-        // Count real catches — never drifts
-        const catchesSnap = await db.ref(`catches/${req.session.userId}`).once('value');
-        const realCount = catchesSnap.val() ? Object.keys(catchesSnap.val()).length : 0;
+        const realCount = await countCatches(req.session.userId);
+        await updateUser(req.session.userId, { total_catches: realCount });
 
-        const userSnap = await db.ref(`users/${req.session.userId}`).once('value');
-        const user = userSnap.val();
+        const { data: user } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', req.session.userId)
+            .single();
 
-        await db.ref(`users/${req.session.userId}`).update({ totalCatches: realCount });
-
-        // Send alert with full catch details to Messenger and/or WhatsApp
         if (user.psid) await handleSystemMessage(user.psid, 'catch', catchData, user);
         if (user.whatsapp) await handleSystemMessage(user.whatsapp, 'catch', catchData, user);
 
@@ -316,15 +338,15 @@ app.post('/api/log-catch', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// H. Clear All Catches for Logged-In User
+// J. Clear All Catches for Logged-In User
 // ─────────────────────────────────────────────────────────────
 
 app.delete('/api/clear-catches', async (req, res) => {
     if (!req.session.loggedIn) return res.status(401).json({ error: 'Not logged in' });
 
     try {
-        await db.ref(`catches/${req.session.userId}`).remove();
-        await db.ref(`users/${req.session.userId}`).update({ totalCatches: 0 });
+        await deleteCatches(req.session.userId);
+        await updateUser(req.session.userId, { total_catches: 0 });
 
         console.log(`[EcoFin] 🗑️ Catches cleared for ${req.session.userId}`);
         res.json({ success: true, message: 'Catch history cleared.' });
@@ -336,7 +358,30 @@ app.delete('/api/clear-catches', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// I. Logout
+// L. Update Profile (name + email)
+// ─────────────────────────────────────────────────────────────
+
+app.post('/api/update-profile', async (req, res) => {
+    if (!req.session.loggedIn) return res.status(401).json({ error: 'Not logged in' });
+
+    try {
+        const { name, email } = req.body;
+        if (!name) return res.status(400).json({ error: 'Name is required' });
+
+        await updateUser(req.session.userId, { name, email: email || '' });
+        req.session.userName = name;
+
+        console.log(`[EcoFin] ✅ Profile updated for ${req.session.userId}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[EcoFin] ❌ Profile update failed:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// K. Logout
 // ─────────────────────────────────────────────────────────────
 
 app.get('/auth/logout', (req, res) => {

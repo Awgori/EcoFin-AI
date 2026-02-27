@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { getUserByPSID, getUserByWhatsApp, getCatchesByUser, db } = require('./firebase');
+const { getUserByPSID, getUserByWhatsApp, getCatchesByUser, supabase } = require('./supabase');
 
 // ─── Send via Messenger ───────────────────────────────────────
 async function sendMessengerMessage(psid, message) {
