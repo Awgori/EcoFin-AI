@@ -43,10 +43,16 @@ app.get('/', (req, res) => {
 // ─────────────────────────────────────────────────────────────
 
 app.get('/auth/facebook', (req, res) => {
+    // ✅ Debug log — shows exact REDIRECT_URI being used in Railway logs
+    console.log('[EcoFin] APP_ID:', process.env.APP_ID);
+    console.log('[EcoFin] REDIRECT_URI:', process.env.REDIRECT_URI);
+
+    const redirectUri = process.env.REDIRECT_URI;
+
     const params = new URLSearchParams({
-        client_id: process.env.APP_ID,
-        redirect_uri: process.env.REDIRECT_URI,
-        scope: 'public_profile',
+        client_id:     process.env.APP_ID,
+        redirect_uri:  redirectUri,
+        scope:         'public_profile',
         response_type: 'code',
     });
 
@@ -61,6 +67,10 @@ app.get('/auth/facebook', (req, res) => {
 app.get('/auth/messenger/callback', async (req, res) => {
     const code = req.query.code;
 
+    // ✅ Debug log — shows exact REDIRECT_URI used in token exchange
+    console.log('[EcoFin] Callback REDIRECT_URI:', process.env.REDIRECT_URI);
+    console.log('[EcoFin] Code received:', code ? 'YES' : 'NO');
+
     if (!code) {
         console.warn('[EcoFin] ⚠️ No code received — user may have cancelled login');
         return res.redirect('/login.html?error=cancelled');
@@ -72,9 +82,9 @@ app.get('/auth/messenger/callback', async (req, res) => {
             'https://graph.facebook.com/v19.0/oauth/access_token',
             {
                 params: {
-                    client_id: process.env.APP_ID,
+                    client_id:     process.env.APP_ID,
                     client_secret: process.env.APP_SECRET,
-                    redirect_uri: process.env.REDIRECT_URI,
+                    redirect_uri:  process.env.REDIRECT_URI,
                     code,
                 }
             }
@@ -99,7 +109,7 @@ app.get('/auth/messenger/callback', async (req, res) => {
                 `https://graph.facebook.com/v19.0/${facebookUserId}`,
                 {
                     params: {
-                        fields: 'ids_for_pages',
+                        fields:       'ids_for_pages',
                         access_token: process.env.PAGE_ACCESS_TOKEN,
                     }
                 }
@@ -118,8 +128,8 @@ app.get('/auth/messenger/callback', async (req, res) => {
             userId = existingUser.id;
             await updateUser(userId, {
                 name,
-                facebook_id: facebookUserId,
-                psid: psid || existingUser.psid || '',
+                facebook_id:        facebookUserId,
+                psid:               psid || existingUser.psid || '',
                 messenger_connected: !!psid,
             });
             console.log(`[EcoFin] ✅ Existing user updated: ${userId}`);
@@ -127,26 +137,26 @@ app.get('/auth/messenger/callback', async (req, res) => {
             userId = `fb_${facebookUserId}`;
             await saveUser(userId, {
                 name,
-                email: '',
-                facebook_id: facebookUserId,
-                psid: psid || '',
-                whatsapp: '',
-                location: 'Philippines',
-                total_catches: 0,
-                fishing_hours: 0,
-                achievements: 0,
-                success_rate: 0,
-                member_since: new Date().toLocaleDateString('en-US', {
+                email:              '',
+                facebook_id:        facebookUserId,
+                psid:               psid || '',
+                whatsapp:           '',
+                location:           'Philippines',
+                total_catches:      0,
+                fishing_hours:      0,
+                achievements:       0,
+                success_rate:       0,
+                member_since:       new Date().toLocaleDateString('en-US', {
                     month: 'long', year: 'numeric'
                 }),
-                messenger_connected: !!psid,
-                whatsapp_connected: false,
+                messenger_connected:  !!psid,
+                whatsapp_connected:   false,
             });
             console.log(`[EcoFin] ✅ New user created: ${userId}`);
         }
 
         // ── Create session ────────────────────────────────────
-        req.session.userId = userId;
+        req.session.userId   = userId;
         req.session.userName = name;
         req.session.loggedIn = true;
 
@@ -166,12 +176,14 @@ app.get('/auth/messenger/callback', async (req, res) => {
 app.get('/auth/messenger', (req, res) => {
     if (!req.session.loggedIn) return res.redirect('/login.html?error=not_logged_in');
 
+    console.log('[EcoFin] Connect Messenger REDIRECT_URI:', process.env.REDIRECT_URI);
+
     const params = new URLSearchParams({
-        client_id: process.env.APP_ID,
-        redirect_uri: process.env.REDIRECT_URI,
-        scope: 'public_profile',
+        client_id:     process.env.APP_ID,
+        redirect_uri:  process.env.REDIRECT_URI,
+        scope:         'public_profile',
         response_type: 'code',
-        state: req.session.userId,
+        state:         req.session.userId,
     });
 
     res.redirect(`https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`);
@@ -191,21 +203,21 @@ app.post('/auth/whatsapp/callback', async (req, res) => {
 
         if (targetId) {
             await updateUser(targetId, {
-                whatsapp: phone,
-                waba_id: wabaId || '',
+                whatsapp:           phone,
+                waba_id:            wabaId || '',
                 whatsapp_connected: true,
             });
             console.log(`[EcoFin] ✅ WhatsApp linked to ${targetId}: ${phone}`);
         } else {
             await saveUser(`wa_${phone}`, {
-                name: name || 'EcoFin User',
-                whatsapp: phone,
-                waba_id: wabaId || '',
+                name:               name || 'EcoFin User',
+                whatsapp:           phone,
+                waba_id:            wabaId || '',
                 whatsapp_connected: true,
                 messenger_connected: false,
-                total_catches: 0,
-                location: 'Philippines',
-                member_since: new Date().toLocaleDateString('en-US', {
+                total_catches:      0,
+                location:           'Philippines',
+                member_since:       new Date().toLocaleDateString('en-US', {
                     month: 'long', year: 'numeric'
                 }),
             });
@@ -301,13 +313,13 @@ app.post('/api/log-catch', async (req, res) => {
 
     try {
         const catchData = {
-            fish: req.body.fish,
-            weight: req.body.weight,
-            size: req.body.size,
+            fish:     req.body.fish,
+            weight:   req.body.weight,
+            size:     req.body.size,
             location: req.body.location,
-            source: req.body.source,
-            depth: req.body.depth,
-            date: new Date().toLocaleDateString('en-US', {
+            source:   req.body.source,
+            depth:    req.body.depth,
+            date:     new Date().toLocaleDateString('en-US', {
                 month: 'short', day: 'numeric', year: 'numeric'
             }),
         };
@@ -324,7 +336,7 @@ app.post('/api/log-catch', async (req, res) => {
             .eq('id', req.session.userId)
             .single();
 
-        if (user.psid) await handleSystemMessage(user.psid, 'catch', catchData, user);
+        if (user.psid)     await handleSystemMessage(user.psid,     'catch', catchData, user);
         if (user.whatsapp) await handleSystemMessage(user.whatsapp, 'catch', catchData, user);
 
         console.log(`[EcoFin] ✅ Catch logged for ${user.name} (total: ${realCount})`);
@@ -398,4 +410,6 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log(`[EcoFin] Server running → http://localhost:${PORT}`);
+    console.log(`[EcoFin] REDIRECT_URI on startup: ${process.env.REDIRECT_URI}`);
+    console.log(`[EcoFin] APP_ID on startup: ${process.env.APP_ID}`);
 });
