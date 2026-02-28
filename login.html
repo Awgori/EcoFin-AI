@@ -13,18 +13,21 @@
             <img src="images/shark-logo.png" alt="Logo" class="logo">
             <h1>EcoFin - AI</h1>
             <p class="subtitle">Smarter Fisheries,<br>Greener Future</p>
-            <input type="text" placeholder="Email address">
-            <input type="password" placeholder="Password">
+
+            <input type="text"     id="emailInput"    placeholder="Email address">
+            <input type="password" id="passwordInput" placeholder="Password">
+
             <button id="loginBtn">Sign In</button>
+
             <p class="forgot">Forgot password?</p>
-            <!-- Error message (shows if OAuth fails) -->
-            <p id="errorMsg" style="color:red; font-size:13px; display:none; margin:0;">
+
+            <p id="errorMsg" style="color:red;font-size:13px;display:none;margin:0;text-align:center;">
                 Login failed. Please try again.
             </p>
+
             <p class="or">Or continue with</p>
             <div class="social-login">
                 <i class="fab fa-google"></i>
-                <!-- Facebook icon triggers real Facebook Login -->
                 <i class="fab fa-facebook-f" id="fbLoginBtn" title="Sign in with Facebook"></i>
                 <i class="fab fa-twitter"></i>
                 <i class="fab fa-linkedin-in"></i>
@@ -32,31 +35,70 @@
             <p class="signup">Don't have an account? <a href="#">Sign up</a></p>
         </div>
     </div>
+
     <script>
-        // ─── Existing Sign In button (email/password — kept for UI) ──
-        const loginBtn = document.getElementById('loginBtn');
-        loginBtn.addEventListener('click', function () {
-            window.location.href = 'dashboard.html';
+        // ─── Email / Password Sign In ─────────────────────────────────
+        document.getElementById('loginBtn').addEventListener('click', async function () {
+            const email    = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+            const btn      = document.getElementById('loginBtn');
+
+            if (!email || !password) {
+                errorMsg.textContent   = 'Please enter your email and password.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            btn.textContent        = 'Signing in...';
+            btn.disabled           = true;
+            errorMsg.style.display = 'none';
+
+            try {
+                const res  = await fetch('/auth/login', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    window.location.href = '/dashboard.html';
+                } else {
+                    errorMsg.textContent   = data.error || 'Invalid email or password.';
+                    errorMsg.style.display = 'block';
+                    btn.textContent        = 'Sign In';
+                    btn.disabled           = false;
+                }
+            } catch (err) {
+                errorMsg.textContent   = 'Server error. Please try again.';
+                errorMsg.style.display = 'block';
+                btn.textContent        = 'Sign In';
+                btn.disabled           = false;
+            }
         });
-        // ─── Facebook icon in social row triggers login ───────────────
-        document.getElementById('fbLoginBtn').addEventListener('click', function () {
-            loginWithFacebook();
+
+        // ─── Press Enter to submit ────────────────────────────────────
+        document.getElementById('passwordInput').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') document.getElementById('loginBtn').click();
         });
+
         // ─── Facebook OAuth Login ─────────────────────────────────────
-        function loginWithFacebook() {
+        document.getElementById('fbLoginBtn').addEventListener('click', function () {
             window.location.href = '/auth/facebook';
-        }
-        // ─── Show error if redirected back with error param ───────────
+        });
+
+        // ─── Show error if redirected back with ?error param ─────────
         const params = new URLSearchParams(window.location.search);
         if (params.get('error')) {
+            document.getElementById('errorMsg').textContent   = 'Login failed. Please try again.';
             document.getElementById('errorMsg').style.display = 'block';
         }
-        // ─── If already logged in, skip login page ────────────────────
+
+        // ─── If already logged in, skip to dashboard ─────────────────
         fetch('/api/me')
-            .then(res => {
-                if (res.ok) window.location.href = '/dashboard.html';
-            })
-            .catch(() => { });  // Not logged in — stay on login page
+            .then(res => { if (res.ok) window.location.href = '/dashboard.html'; })
+            .catch(() => {});
     </script>
 </body>
 </html>

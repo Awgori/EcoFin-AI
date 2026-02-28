@@ -43,20 +43,84 @@ app.get('/', (req, res) => {
 // ─────────────────────────────────────────────────────────────
 
 app.get('/auth/facebook', (req, res) => {
-    // ✅ Debug log — shows exact REDIRECT_URI being used in Railway logs
     console.log('[EcoFin] APP_ID:', process.env.APP_ID);
     console.log('[EcoFin] REDIRECT_URI:', process.env.REDIRECT_URI);
 
-    const redirectUri = process.env.REDIRECT_URI;
-
     const params = new URLSearchParams({
         client_id:     process.env.APP_ID,
-        redirect_uri:  redirectUri,
+        redirect_uri:  process.env.REDIRECT_URI,
         scope:         'public_profile',
         response_type: 'code',
     });
 
     res.redirect(`https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`);
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// A2. Email / Password Login
+// ─────────────────────────────────────────────────────────────
+
+app.post('/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+    try {
+        // ── Sign in via Supabase Auth ─────────────────────────
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error || !data.user) {
+            console.warn(`[EcoFin] ⚠️ Login failed for ${email}:`, error?.message);
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        console.log(`[EcoFin] ✅ Email login: ${email}`);
+
+        // ── Find matching user in users table by email ────────
+        const { data: userData } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+        let userId;
+
+        if (userData) {
+            userId = userData.id;
+        } else {
+            // Create user record if not found
+            userId = `email_${data.user.id}`;
+            await saveUser(userId, {
+                name:                email.split('@')[0],
+                email,
+                facebook_id:         '',
+                psid:                '',
+                whatsapp:            '',
+                location:            'Philippines',
+                total_catches:       0,
+                fishing_hours:       0,
+                achievements:        0,
+                success_rate:        0,
+                member_since:        new Date().toLocaleDateString('en-US', {
+                    month: 'long', year: 'numeric'
+                }),
+                messenger_connected:  false,
+                whatsapp_connected:   false,
+            });
+        }
+
+        // ── Create session ────────────────────────────────────
+        req.session.userId   = userId;
+        req.session.userName = userData?.name || email.split('@')[0];
+        req.session.loggedIn = true;
+
+        console.log(`[EcoFin] ✅ Session created for ${userId}`);
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('[EcoFin] ❌ Email login error:', err.message);
+        res.status(500).json({ error: 'Server error. Please try again.' });
+    }
 });
 
 
@@ -67,7 +131,6 @@ app.get('/auth/facebook', (req, res) => {
 app.get('/auth/messenger/callback', async (req, res) => {
     const code = req.query.code;
 
-    // ✅ Debug log — shows exact REDIRECT_URI used in token exchange
     console.log('[EcoFin] Callback REDIRECT_URI:', process.env.REDIRECT_URI);
     console.log('[EcoFin] Code received:', code ? 'YES' : 'NO');
 
@@ -77,7 +140,6 @@ app.get('/auth/messenger/callback', async (req, res) => {
     }
 
     try {
-        // ── Exchange code for access token ────────────────────
         const tokenRes = await axios.get(
             'https://graph.facebook.com/v19.0/oauth/access_token',
             {
@@ -91,28 +153,18 @@ app.get('/auth/messenger/callback', async (req, res) => {
         );
         const accessToken = tokenRes.data.access_token;
 
-        // ── Get Facebook User ID and name ─────────────────────
         const profileRes = await axios.get('https://graph.facebook.com/me', {
-            params: {
-                access_token: accessToken,
-                fields: 'id,name'
-            }
+            params: { access_token: accessToken, fields: 'id,name' }
         });
         const { id: facebookUserId, name } = profileRes.data;
 
         console.log(`[EcoFin] ✅ Facebook login: ${name} (${facebookUserId})`);
 
-        // ── Try to get Messenger PSID ─────────────────────────
         let psid = '';
         try {
             const psidRes = await axios.get(
                 `https://graph.facebook.com/v19.0/${facebookUserId}`,
-                {
-                    params: {
-                        fields:       'ids_for_pages',
-                        access_token: process.env.PAGE_ACCESS_TOKEN,
-                    }
-                }
+                { params: { fields: 'ids_for_pages', access_token: process.env.PAGE_ACCESS_TOKEN } }
             );
             psid = psidRes.data?.ids_for_pages?.data?.[0]?.id || '';
             if (psid) console.log(`[EcoFin] ✅ PSID retrieved: ${psid}`);
@@ -120,7 +172,6 @@ app.get('/auth/messenger/callback', async (req, res) => {
             console.warn('[EcoFin] ⚠️ Could not retrieve PSID');
         }
 
-        // ── Check if user already exists in Supabase ─────────
         const existingUser = await getUserByFacebookId(facebookUserId);
         let userId;
 
@@ -128,8 +179,8 @@ app.get('/auth/messenger/callback', async (req, res) => {
             userId = existingUser.id;
             await updateUser(userId, {
                 name,
-                facebook_id:        facebookUserId,
-                psid:               psid || existingUser.psid || '',
+                facebook_id:         facebookUserId,
+                psid:                psid || existingUser.psid || '',
                 messenger_connected: !!psid,
             });
             console.log(`[EcoFin] ✅ Existing user updated: ${userId}`);
@@ -137,16 +188,16 @@ app.get('/auth/messenger/callback', async (req, res) => {
             userId = `fb_${facebookUserId}`;
             await saveUser(userId, {
                 name,
-                email:              '',
-                facebook_id:        facebookUserId,
-                psid:               psid || '',
-                whatsapp:           '',
-                location:           'Philippines',
-                total_catches:      0,
-                fishing_hours:      0,
-                achievements:       0,
-                success_rate:       0,
-                member_since:       new Date().toLocaleDateString('en-US', {
+                email:               '',
+                facebook_id:         facebookUserId,
+                psid:                psid || '',
+                whatsapp:            '',
+                location:            'Philippines',
+                total_catches:       0,
+                fishing_hours:       0,
+                achievements:        0,
+                success_rate:        0,
+                member_since:        new Date().toLocaleDateString('en-US', {
                     month: 'long', year: 'numeric'
                 }),
                 messenger_connected:  !!psid,
@@ -155,7 +206,6 @@ app.get('/auth/messenger/callback', async (req, res) => {
             console.log(`[EcoFin] ✅ New user created: ${userId}`);
         }
 
-        // ── Create session ────────────────────────────────────
         req.session.userId   = userId;
         req.session.userName = name;
         req.session.loggedIn = true;

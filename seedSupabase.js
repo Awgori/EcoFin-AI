@@ -8,14 +8,11 @@ const supabase = createClient(
 
 const PASSWORD = 'EcoFin2025!';
 
-// ─── 20 Users — exactly matching your column names ───────────
+// ─── 20 Users ─────────────────────────────────────────────────
 const users = [
-    // ── Company Handlers ──────────────────────────────────────
     { id: 'user_001', name: 'Steve Ivan Garado',  email: 'steve@ecofin.com',      location: 'Batangas, Philippines'   },
     { id: 'user_002', name: 'Maria Santos',        email: 'maria@ecofin.com',      location: 'Manila, Philippines'     },
     { id: 'user_003', name: 'Juan dela Cruz',      email: 'juan@ecofin.com',       location: 'Cebu, Philippines'       },
-
-    // ── Fisher Accounts ────────────────────────────────────────
     { id: 'user_004', name: 'Pedro Reyes',         email: 'pedro@ecofin.com',      location: 'Cavite, Philippines'     },
     { id: 'user_005', name: 'Rosa Mendoza',        email: 'rosa@ecofin.com',       location: 'Zambales, Philippines'   },
     { id: 'user_006', name: 'Carlos Bautista',     email: 'carlos@ecofin.com',     location: 'Palawan, Philippines'    },
@@ -35,18 +32,17 @@ const users = [
     { id: 'user_020', name: 'Domingo Santiago',    email: 'domingo@ecofin.com',    location: 'Mindanao, Philippines'   },
 ];
 
-// ─── Sample catches matching your exact catches columns ───────
 const catchPool = [
-    { fish: 'Tuna',        weight: '25.5', size: '45cm - 60cm', source: 'Sea',   location: 'South China Sea',       depth: '30', date: 'Jan 15, 2026' },
-    { fish: 'Tilapia',     weight: '2.3',  size: '20cm - 30cm', source: 'Lake',  location: 'Laguna de Bay',         depth: '5',  date: 'Jan 22, 2026' },
-    { fish: 'Bangus',      weight: '1.8',  size: '25cm - 35cm', source: 'Sea',   location: 'Manila Bay',            depth: '10', date: 'Feb 3, 2026'  },
-    { fish: 'Galunggong',  weight: '0.9',  size: '15cm - 20cm', source: 'Sea',   location: 'Batangas Bay',          depth: '20', date: 'Feb 10, 2026' },
-    { fish: 'Lapu-Lapu',   weight: '3.2',  size: '30cm - 40cm', source: 'Sea',   location: 'Cebu Strait',           depth: '15', date: 'Feb 14, 2026' },
-    { fish: 'Maya-Maya',   weight: '2.1',  size: '25cm - 35cm', source: 'Sea',   location: 'Palawan Waters',        depth: '25', date: 'Feb 18, 2026' },
-    { fish: 'Tanigue',     weight: '5.4',  size: '50cm - 70cm', source: 'Sea',   location: 'Davao Gulf',            depth: '35', date: 'Feb 20, 2026' },
-    { fish: 'Carp',        weight: '1.5',  size: '20cm - 25cm', source: 'Pond',  location: 'Candaba Swamp',         depth: '3',  date: 'Feb 22, 2026' },
-    { fish: 'Catfish',     weight: '1.2',  size: '18cm - 25cm', source: 'River', location: 'Cagayan River',         depth: '4',  date: 'Feb 24, 2026' },
-    { fish: 'Squid',       weight: '0.8',  size: '15cm - 20cm', source: 'Sea',   location: 'Visayan Sea',           depth: '12', date: 'Feb 25, 2026' },
+    { fish: 'Tuna',       weight: '25.5', size: '45cm - 60cm', source: 'Sea',   location: 'South China Sea',  depth: '30', date: 'Jan 15, 2026' },
+    { fish: 'Tilapia',    weight: '2.3',  size: '20cm - 30cm', source: 'Lake',  location: 'Laguna de Bay',    depth: '5',  date: 'Jan 22, 2026' },
+    { fish: 'Bangus',     weight: '1.8',  size: '25cm - 35cm', source: 'Sea',   location: 'Manila Bay',       depth: '10', date: 'Feb 3, 2026'  },
+    { fish: 'Galunggong', weight: '0.9',  size: '15cm - 20cm', source: 'Sea',   location: 'Batangas Bay',     depth: '20', date: 'Feb 10, 2026' },
+    { fish: 'Lapu-Lapu',  weight: '3.2',  size: '30cm - 40cm', source: 'Sea',   location: 'Cebu Strait',      depth: '15', date: 'Feb 14, 2026' },
+    { fish: 'Maya-Maya',  weight: '2.1',  size: '25cm - 35cm', source: 'Sea',   location: 'Palawan Waters',   depth: '25', date: 'Feb 18, 2026' },
+    { fish: 'Tanigue',    weight: '5.4',  size: '50cm - 70cm', source: 'Sea',   location: 'Davao Gulf',       depth: '35', date: 'Feb 20, 2026' },
+    { fish: 'Carp',       weight: '1.5',  size: '20cm - 25cm', source: 'Pond',  location: 'Candaba Swamp',    depth: '3',  date: 'Feb 22, 2026' },
+    { fish: 'Catfish',    weight: '1.2',  size: '18cm - 25cm', source: 'River', location: 'Cagayan River',    depth: '4',  date: 'Feb 24, 2026' },
+    { fish: 'Squid',      weight: '0.8',  size: '15cm - 20cm', source: 'Sea',   location: 'Visayan Sea',      depth: '12', date: 'Feb 25, 2026' },
 ];
 
 const memberMonths = [
@@ -69,12 +65,11 @@ async function seed() {
         console.log(`─── ${user.name} (${user.email})`);
 
         // ── Step 1: Create Supabase Auth account ──────────────
-        const { data: authData, error: authError } =
-            await supabase.auth.admin.createUser({
-                email:         user.email,
-                password:      PASSWORD,
-                email_confirm: true,
-            });
+        const { error: authError } = await supabase.auth.admin.createUser({
+            email:         user.email,
+            password:      PASSWORD,
+            email_confirm: true,
+        });
 
         if (authError) {
             if (authError.message.toLowerCase().includes('already')) {
@@ -101,10 +96,10 @@ async function seed() {
                 id:                  user.id,
                 name:                user.name,
                 email:               user.email,
-                facebook_id:         '',
-                psid:                '',
-                whatsapp:            '',
-                waba_id:             '',
+                facebook_id:         null,   // ✅ null instead of '' to avoid unique constraint
+                psid:                null,
+                whatsapp:            null,
+                waba_id:             null,
                 location:            user.location,
                 total_catches:       0,
                 fishing_hours,
@@ -118,7 +113,7 @@ async function seed() {
         if (dbError) {
             console.error(`  ❌ DB failed: ${dbError.message}`);
             dbFailed++;
-            continue; // skip catches if user insert failed
+            continue;
         }
 
         console.log(`  ✅ DB record created`);
@@ -135,15 +130,15 @@ async function seed() {
             const { error: catchError } = await supabase
                 .from('catches')
                 .upsert({
-                    id:      catchId,
-                    user_id: user.id,
-                    fish:    c.fish,
-                    weight:  c.weight,
-                    size:    c.size,
-                    source:  c.source,
+                    id:       catchId,
+                    user_id:  user.id,
+                    fish:     c.fish,
+                    weight:   c.weight,
+                    size:     c.size,
+                    source:   c.source,
                     location: c.location,
-                    depth:   c.depth,
-                    date:    c.date,
+                    depth:    c.depth,
+                    date:     c.date,
                 }, { onConflict: 'id' });
 
             if (!catchError) {
@@ -166,11 +161,10 @@ async function seed() {
         await new Promise(r => setTimeout(r, 120));
     }
 
-    // ── Summary ───────────────────────────────────────────────
     console.log('═══════════════════════════════════════════════');
     console.log('✅ SEED COMPLETE');
-    console.log(`   Auth: ${authSuccess} created, ${authSkipped} skipped, ${authFailed} failed`);
-    console.log(`   DB:   ${dbSuccess} created, ${dbFailed} failed`);
+    console.log(`   Auth:    ${authSuccess} created, ${authSkipped} skipped, ${authFailed} failed`);
+    console.log(`   DB:      ${dbSuccess} created, ${dbFailed} failed`);
     console.log(`   Catches: ${catchSuccess} seeded`);
     console.log('═══════════════════════════════════════════════');
     console.log('\n📋 ALL 20 LOGIN CREDENTIALS:');
@@ -178,7 +172,8 @@ async function seed() {
     users.forEach((u, i) => {
         console.log(`   ${String(i + 1).padStart(2, '0')}. ${u.email.padEnd(28)} ${u.name}`);
     });
-    console.log('\n🌐 App URL: your-railway-url.up.railway.app');
+    console.log('\n🌐 App URL: https://ecofin-ai-production.up.railway.app');
+    process.exit(0);
 }
 
 seed().catch(err => {
