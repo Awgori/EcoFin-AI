@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { getUserByPSID, getUserByWhatsApp, getCatchesByUser, supabase } = require('./supabase');
+const { getUserByPSID, getUserByWhatsApp, getCatchesByUser, updateUser } = require('./supabase');
 
 // ─── Send via Messenger ───────────────────────────────────────
 async function sendMessengerMessage(psid, message) {
@@ -20,12 +20,12 @@ async function sendWhatsAppMessage(phone, message) {
         if (typeof message === 'string') message = { body: message };
         await axios.post(url, {
             messaging_product: 'whatsapp',
-            to: phone,
+            to:   phone,
             type: 'text',
             text: { body: message.body || message.text || '' },
         }, {
             headers: {
-                Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+                Authorization:  `Bearer ${process.env.WHATSAPP_TOKEN}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -36,47 +36,33 @@ async function sendWhatsAppMessage(phone, message) {
 }
 
 // ─── Send WhatsApp interactive menu ──────────────────────────
-// This replaces sendWhatsAppMenu.js — no need to node the file anymore.
-// Called automatically by webhook when user sends any greeting.
 async function sendWhatsAppMenu(phone) {
     try {
         const url = `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`;
         await axios.post(url, {
             messaging_product: 'whatsapp',
-            to: phone,
+            to:   phone,
             type: 'interactive',
             interactive: {
-                type: 'list',
+                type:   'list',
                 header: { type: 'text', text: '🐟 EcoFin AI' },
-                body: { text: 'Hi! Welcome to EcoFin 🎣\nPlease let us know how we can help you.' },
+                body:   { text: 'Hi! Welcome to EcoFin 🎣\nPlease let us know how we can help you.' },
                 footer: { text: 'Smarter Fisheries, Greener Future' },
                 action: {
                     button: 'Main Menu',
                     sections: [{
                         title: 'Fisher Options',
                         rows: [
-                            {
-                                id: 'MENU_PROFILE',
-                                title: '🧑 View My Profile',
-                                description: 'See your fisher profile and stats'
-                            },
-                            {
-                                id: 'MENU_CATCH',
-                                title: '🐟 Latest Catch',
-                                description: 'View your most recent catch'
-                            },
-                            {
-                                id: 'MENU_HISTORY',
-                                title: '📋 Catch History',
-                                description: 'See all your logged catches'
-                            },
+                            { id: 'MENU_PROFILE', title: '🧑 View My Profile', description: 'See your fisher profile and stats' },
+                            { id: 'MENU_CATCH',   title: '🐟 Latest Catch',    description: 'View your most recent catch'      },
+                            { id: 'MENU_HISTORY', title: '📋 Catch History',   description: 'See all your logged catches'      },
                         ]
                     }]
                 }
             }
         }, {
             headers: {
-                Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+                Authorization:  `Bearer ${process.env.WHATSAPP_TOKEN}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -86,121 +72,142 @@ async function sendWhatsAppMenu(phone) {
     }
 }
 
+// ─── Send Messenger welcome buttons ──────────────────────────
+async function sendWelcomeButtons(psid) {
+    try {
+        const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`;
+        await axios.post(url, {
+            recipient: { id: psid },
+            message: {
+                attachment: {
+                    type: 'template',
+                    payload: {
+                        template_type: 'button',
+                        text: 'Hi! Please let us know how we can help you.',
+                        buttons: [
+                            { type: 'postback', title: '🧑 View My Profile', payload: 'MENU_PROFILE' },
+                            { type: 'postback', title: '🐟 Latest Catch',    payload: 'MENU_CATCH'   },
+                            { type: 'postback', title: '📋 Catch History',   payload: 'MENU_HISTORY' },
+                        ],
+                    },
+                },
+            },
+        }, { headers: { 'Content-Type': 'application/json' } });
+        console.log(`[EcoFin] ✅ Welcome buttons sent to: ${psid}`);
+    } catch (err) {
+        console.error('[EcoFin] ❌ Welcome buttons failed:', err.response?.data || err.message);
+    }
+}
+
 // ─── Formatters ───────────────────────────────────────────────
 function formatProfile(user, catches) {
-    return `👤 ${user.name}\nLocation: ${user.location}\nCatches: ${catches.length}`;
+    return [
+        `👤 EcoFin AI — Fisher Profile`,
+        `─────────────────────────────`,
+        `Name:          ${user.name}`,
+        `Location:      ${user.location || 'Philippines'}`,
+        `Total Catches: ${catches.length}`,
+        `Success Rate:  ${user.success_rate || 0}%`,
+        `Achievements:  ${user.achievements || 0}`,
+        `Member Since:  ${user.member_since || '--'}`,
+        `─────────────────────────────`,
+    ].join('\n');
 }
 
 function formatCatchAlert(catchRecord, user) {
-    const location = catchRecord.location || 'Unknown';
-    const source = catchRecord.source || '--';
-    const depth = catchRecord.depth ? `${catchRecord.depth} m` : '--';
-    const weight = catchRecord.weight ? `${catchRecord.weight} kg` : '--';
-
-    return (
-        `🐟 New Catch Logged — EcoFin AI\n` +
-        `─────────────────────────────\n` +
-        `Fisher:   ${user.name}\n` +
-        `Fish:     ${catchRecord.fish}\n` +
-        `Weight:   ${weight}\n` +
-        `Size:     ${catchRecord.size}\n` +
-        `Source:   ${source}\n` +
-        `Location: ${location}\n` +
-        `Depth:    ${depth}\n` +
-        `Date:     ${catchRecord.date}\n` +
-        `─────────────────────────────\n` +
-        `View full history in the EcoFin app.`
-    );
+    return [
+        `🐟 New Catch Logged — EcoFin AI`,
+        `─────────────────────────────`,
+        `Fisher:   ${user.name}`,
+        `Fish:     ${catchRecord.fish}`,
+        `Weight:   ${catchRecord.weight || '--'}`,
+        `Size:     ${catchRecord.size || '--'}`,
+        `Source:   ${catchRecord.source || '--'}`,
+        `Location: ${catchRecord.location || '--'}`,
+        `Depth:    ${catchRecord.depth || '--'}`,
+        `Date:     ${catchRecord.date}`,
+        `─────────────────────────────`,
+        `View full history in the EcoFin app.`,
+    ].join('\n');
 }
 
 function formatHistoryFromArray(catches, user) {
     if (!catches.length) return '📋 No catches logged yet.';
 
-    const lines = catches.map((c, i) => {
-        const weight = c.weight ? `${c.weight} kg` : '--';
-        return (
-            `#${i + 1} ${c.fish} — ${weight} (${c.size})\n` +
-            `    📍 ${c.location || 'Unknown'} | 🗓️ ${c.date}`
-        );
-    });
-
-    return (
-        `📋 Catch History — ${user.name}\n` +
-        `─────────────────────────────\n` +
-        lines.join('\n\n') +
-        `\n─────────────────────────────\n` +
-        `Total: ${catches.length} catch${catches.length !== 1 ? 'es' : ''}`
+    const lines = catches.map((c, i) =>
+        `#${i + 1} ${c.fish} — ${c.weight || '--'} (${c.size || '--'})\n` +
+        `    📍 ${c.location || 'Unknown'} | 🗓️ ${c.date}`
     );
+
+    return [
+        `📋 Catch History — ${user.name}`,
+        `─────────────────────────────`,
+        ...lines,
+        `─────────────────────────────`,
+        `Total: ${catches.length} catch${catches.length !== 1 ? 'es' : ''}`,
+    ].join('\n');
 }
 
-// ─── Handle Messenger Postback ────────────────────────────────
-async function handleMessengerOnly(psid, action) {
-    const user = await getUserByPSID(psid);
-    if (!user) return console.log(`[EcoFin] Unknown PSID: ${psid}`);
-
-    let message = '';
+// ─── Build message based on action ───────────────────────────
+async function buildMessage(user, action) {
+    const catches = await getCatchesByUser(user.id);
 
     if (action === 'profile') {
-        const catches = await getCatchesByUser(user.id);
-        await db.ref(`users/${user.id}`).update({ totalCatches: catches.length });
-        message = formatProfile(user, catches);
+        // Update total catches count in Supabase
+        await updateUser(user.id, { total_catches: catches.length });
+        return formatProfile(user, catches);
     } else if (action === 'history') {
-        const catches = await getCatchesByUser(user.id);
-        message = formatHistoryFromArray(catches, user);
+        return formatHistoryFromArray(catches, user);
     } else {
-        const catches = await getCatchesByUser(user.id);
         const latest = catches[catches.length - 1];
-        message = latest ? formatCatchAlert(latest, user) : '🎣 No catches logged yet.';
+        return latest ? formatCatchAlert(latest, user) : '🎣 No catches logged yet.';
     }
+}
 
+// ─── Handle Messenger ONLY ────────────────────────────────────
+async function handleMessengerOnly(psid, action) {
+    const user = await getUserByPSID(psid);
+    if (!user) {
+        console.log(`[EcoFin] Unknown PSID: ${psid}`);
+        return;
+    }
+    console.log(`[EcoFin] → Messenger: ${action} for ${user.name}`);
+    const message = await buildMessage(user, action);
     await sendMessengerMessage(psid, message);
 }
 
-// ─── Handle WhatsApp Menu Selection ──────────────────────────
+// ─── Handle WhatsApp ONLY ─────────────────────────────────────
 async function handleWhatsAppOnly(phone, action) {
     const user = await getUserByWhatsApp(phone);
-
-    // User not found — prompt to connect their account
     if (!user) {
+        console.log(`[EcoFin] Unknown WhatsApp: ${phone}`);
         await sendWhatsAppMessage(phone,
-            `⚠️ Your WhatsApp number is not linked to an EcoFin account yet.\n` +
+            `⚠️ Your WhatsApp number is not linked to an EcoFin account.\n` +
             `Please log in to the EcoFin app and connect your WhatsApp from your profile.`
         );
         return;
     }
-
-    let message = '';
-
-    if (action === 'profile') {
-        const catches = await getCatchesByUser(user.id);
-        await db.ref(`users/${user.id}`).update({ totalCatches: catches.length });
-        message = formatProfile(user, catches);
-    } else if (action === 'history') {
-        const catches = await getCatchesByUser(user.id);
-        message = formatHistoryFromArray(catches, user);
-    } else {
-        const catches = await getCatchesByUser(user.id);
-        const latest = catches[catches.length - 1];
-        message = latest ? formatCatchAlert(latest, user) : '🎣 No catches logged yet.';
-    }
-
+    console.log(`[EcoFin] → WhatsApp: ${action} for ${user.name}`);
+    const message = await buildMessage(user, action);
     await sendWhatsAppMessage(phone, message);
 }
 
-// ─── System Alert (after logging a catch) ────────────────────
+// ─── System alert — after logging a catch from the app ───────
 async function handleSystemMessage(recipient, event, catchData, user) {
     if (event !== 'catch') return;
-
     const msg = formatCatchAlert(catchData, user);
 
+    // Check WhatsApp first
     const waUser = await getUserByWhatsApp(recipient).catch(() => null);
     if (waUser) {
         await sendWhatsAppMessage(recipient, msg);
-    } else {
-        const msUser = await getUserByPSID(recipient).catch(() => null);
-        if (msUser) {
-            await sendMessengerMessage(recipient, msg);
-        }
+        return; // ← stop here, don't also send Messenger
+    }
+
+    // Then check Messenger
+    const msUser = await getUserByPSID(recipient).catch(() => null);
+    if (msUser) {
+        await sendMessengerMessage(recipient, msg);
     }
 }
 
@@ -208,6 +215,7 @@ module.exports = {
     sendMessengerMessage,
     sendWhatsAppMessage,
     sendWhatsAppMenu,
+    sendWelcomeButtons,
     handleMessengerOnly,
     handleWhatsAppOnly,
     handleSystemMessage,
