@@ -70,6 +70,10 @@ app.post('/auth/login', async (req, res) => {
 
         if (error || !data.user) {
             console.warn(`[EcoFin] ⚠️ Login failed for ${email}:`, error?.message);
+            // Check if it's an unverified email error
+            if (error?.message?.toLowerCase().includes('email not confirmed')) {
+                return res.status(401).json({ error: 'Please verify your email before logging in. Check your inbox.' });
+            }
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
@@ -121,7 +125,7 @@ app.post('/auth/login', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// A3. Sign Up — Create new account
+// A3. Sign Up — Create new account (with email verification)
 // ─────────────────────────────────────────────────────────────
 
 app.post('/auth/signup', async (req, res) => {
@@ -135,10 +139,14 @@ app.post('/auth/signup', async (req, res) => {
     }
 
     try {
-        const { data, error: authError } = await supabase.auth.admin.createUser({
+        // ── Use signUp (not admin.createUser) so email verification is required ──
+        const { data, error: authError } = await supabase.auth.signUp({
             email,
             password,
-            email_confirm: true,
+            options: {
+                data: { name }, // store name in auth metadata
+                emailRedirectTo: `${process.env.APP_URL || 'https://ecofin-ai-production.up.railway.app'}/auth/verify`,
+            }
         });
 
         if (authError) {
@@ -149,8 +157,7 @@ app.post('/auth/signup', async (req, res) => {
             return res.status(400).json({ error: authError.message });
         }
 
-        console.log(`[EcoFin] ✅ New auth account: ${email}`);
-
+        // ── Supabase returns a user even before verification, so pre-create the record ──
         const userId = `user_${data.user.id.replace(/-/g, '').slice(0, 12)}`;
 
         await saveUser(userId, {
@@ -168,22 +175,30 @@ app.post('/auth/signup', async (req, res) => {
             member_since:        new Date().toLocaleDateString('en-US', {
                 month: 'long', year: 'numeric'
             }),
-            messenger_connected: false,
+            messenger_connected: false,  // ✅ Never auto-connected
             whatsapp_connected:  false,
         });
 
-        console.log(`[EcoFin] ✅ New user created: ${userId} (${name})`);
+        console.log(`[EcoFin] ✅ New signup (pending verification): ${email}`);
 
-        req.session.userId   = userId;
-        req.session.userName = name;
-        req.session.loggedIn = true;
-
-        res.json({ success: true });
+        // ── Do NOT create session yet — wait for email verification ──
+        res.json({ success: true, pending: true });
 
     } catch (err) {
         console.error('[EcoFin] ❌ Sign up error:', err.message);
         res.status(500).json({ error: 'Server error. Please try again.' });
     }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// A4. Email Verification Redirect
+// ─────────────────────────────────────────────────────────────
+
+app.get('/auth/verify', async (req, res) => {
+    // Supabase redirects here after email verification with token_hash in URL
+    // The user is now verified — redirect to login with success message
+    res.redirect('/login.html?verified=true');
 });
 
 

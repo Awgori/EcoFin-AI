@@ -21,8 +21,13 @@
 
             <button id="signupBtn">Create Account</button>
 
-            <p id="errorMsg"   style="color:red;font-size:13px;display:none;margin:4px 0;text-align:center;"></p>
-            <p id="successMsg" style="color:green;font-size:13px;display:none;margin:4px 0;text-align:center;">✅ Account created! Redirecting...</p>
+            <p id="errorMsg" style="color:red;font-size:13px;display:none;margin:4px 0;text-align:center;"></p>
+
+            <!-- Shown after successful signup -->
+            <div id="verifyMsg" style="display:none; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:12px; margin-top:8px; text-align:center;">
+                <p style="color:#2e7d32; font-size:14px; font-weight:600; margin:0 0 4px;">✅ Account created!</p>
+                <p style="color:#388e3c; font-size:13px; margin:0;">Please check your email and click the verification link to activate your account.</p>
+            </div>
 
             <p class="or">Or continue with</p>
             <div class="social-login">
@@ -42,19 +47,19 @@
             const email    = document.getElementById('emailInput').value.trim();
             const password = document.getElementById('passwordInput').value.trim();
             const confirm  = document.getElementById('confirmInput').value.trim();
-            const errorMsg   = document.getElementById('errorMsg');
-            const successMsg = document.getElementById('successMsg');
-            const btn        = document.getElementById('signupBtn');
+            const errorMsg  = document.getElementById('errorMsg');
+            const verifyMsg = document.getElementById('verifyMsg');
+            const btn       = document.getElementById('signupBtn');
 
-            errorMsg.style.display   = 'none';
-            successMsg.style.display = 'none';
+            errorMsg.style.display  = 'none';
+            verifyMsg.style.display = 'none';
 
             if (!name) {
                 errorMsg.textContent   = 'Please enter your full name.';
                 errorMsg.style.display = 'block';
                 return;
             }
-            if (!email || !email.includes('@')) {
+            if (!email || !email.includes('@') || !email.includes('.')) {
                 errorMsg.textContent   = 'Please enter a valid email address.';
                 errorMsg.style.display = 'block';
                 return;
@@ -82,10 +87,13 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    successMsg.style.display = 'block';
-                    setTimeout(() => {
-                        window.location.href = '/dashboard.html';
-                    }, 1000);
+                    // Show verify message, hide the form fields
+                    verifyMsg.style.display = 'block';
+                    btn.style.display       = 'none';
+                    document.getElementById('nameInput').style.display     = 'none';
+                    document.getElementById('emailInput').style.display    = 'none';
+                    document.getElementById('passwordInput').style.display = 'none';
+                    document.getElementById('confirmInput').style.display  = 'none';
                 } else {
                     errorMsg.textContent   = data.error || 'Sign up failed. Please try again.';
                     errorMsg.style.display = 'block';

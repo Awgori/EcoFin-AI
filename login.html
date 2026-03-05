@@ -21,8 +21,11 @@
 
             <p class="forgot">Forgot password?</p>
 
-            <p id="errorMsg" style="color:red;font-size:13px;display:none;margin:0;text-align:center;">
-                Login failed. Please try again.
+            <p id="errorMsg" style="color:red;font-size:13px;display:none;margin:0;text-align:center;"></p>
+
+            <!-- Shown after email verification redirect -->
+            <p id="verifiedMsg" style="color:green;font-size:13px;display:none;margin:0;text-align:center;">
+                ✅ Email verified! You can now sign in.
             </p>
 
             <p class="or">Or continue with</p>
@@ -33,7 +36,6 @@
                 <i class="fab fa-linkedin-in"></i>
             </div>
 
-            <!-- ✅ Sign up link now points to signup.html -->
             <p class="signup">Don't have an account? <a href="/signup.html">Sign up</a></p>
         </div>
     </div>
@@ -91,6 +93,9 @@
         if (params.get('error')) {
             document.getElementById('errorMsg').textContent   = 'Login failed. Please try again.';
             document.getElementById('errorMsg').style.display = 'block';
+        }
+        if (params.get('verified') === 'true') {
+            document.getElementById('verifiedMsg').style.display = 'block';
         }
 
         fetch('/api/me')
