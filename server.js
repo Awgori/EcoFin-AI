@@ -537,4 +537,4 @@ app.listen(PORT, () => {
     console.log(`[EcoFin] Server running → http://localhost:${PORT}`);
     console.log(`[EcoFin] REDIRECT_URI on startup: ${process.env.REDIRECT_URI}`);
     console.log(`[EcoFin] APP_ID on startup: ${process.env.APP_ID}`);
-});
+}); 
