@@ -196,9 +196,8 @@ app.post('/auth/signup', async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 
 app.get('/auth/verify', async (req, res) => {
-    // Supabase redirects here after email verification with token_hash in URL
-    // The user is now verified — redirect to login with success message
-    res.redirect('/login.html?verified=true');
+    // Supabase sends token in hash fragment — serve verify.html to handle it
+    res.sendFile(__dirname + '/verify.html');
 });
 
 
