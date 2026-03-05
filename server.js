@@ -37,6 +37,17 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/login.html');
 });
 
+// ─── Explicit static file routes ─────────────────────────────
+app.get('/verify.html', (req, res) => {
+    res.sendFile(__dirname + '/verify.html');
+});
+app.get('/signup.html', (req, res) => {
+    res.sendFile(__dirname + '/signup.html');
+});
+app.get('/login.html', (req, res) => {
+    res.sendFile(__dirname + '/login.html');
+});
+
 
 // ─────────────────────────────────────────────────────────────
 // A. Facebook OAuth — Step 1: Redirect to Facebook Login
@@ -89,9 +100,11 @@ app.post('/auth/login', async (req, res) => {
         if (userData) {
             userId = userData.id;
         } else {
+            // Fallback — create user record if missing
             userId = `email_${data.user.id}`;
+            const name = data.user.user_metadata?.name || email.split('@')[0];
             await saveUser(userId, {
-                name:                email.split('@')[0],
+                name,
                 email,
                 facebook_id:         null,
                 psid:                null,
@@ -110,7 +123,7 @@ app.post('/auth/login', async (req, res) => {
         }
 
         req.session.userId   = userId;
-        req.session.userName = userData?.name || email.split('@')[0];
+        req.session.userName = userData?.name || data.user.user_metadata?.name || email.split('@')[0];
         req.session.loggedIn = true;
 
         console.log(`[EcoFin] ✅ Session created for ${userId}`);
@@ -138,12 +151,14 @@ app.post('/auth/signup', async (req, res) => {
     }
 
     try {
+        const appUrl = process.env.APP_URL || 'https://ecofin-ai-production-f13d.up.railway.app';
+
         const { data, error: authError } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: { name },
-                emailRedirectTo: `${process.env.APP_URL || 'https://ecofin-ai-production-f13d.up.railway.app'}/verify.html`,
+                emailRedirectTo: `${appUrl}/verify.html`,
             }
         });
 
@@ -155,10 +170,11 @@ app.post('/auth/signup', async (req, res) => {
             return res.status(400).json({ error: authError.message });
         }
 
+        // ── Pre-create user record with real name ─────────────
         const userId = `user_${data.user.id.replace(/-/g, '').slice(0, 12)}`;
 
         await saveUser(userId, {
-            name,
+            name,       // ✅ saves the real full name from signup form
             email,
             facebook_id:         null,
             psid:                null,
@@ -176,7 +192,7 @@ app.post('/auth/signup', async (req, res) => {
             whatsapp_connected:  false,
         });
 
-        console.log(`[EcoFin] ✅ New signup (pending verification): ${email}`);
+        console.log(`[EcoFin] ✅ New signup (pending verification): ${email} (${name})`);
         res.json({ success: true, pending: true });
 
     } catch (err) {
@@ -187,14 +203,10 @@ app.post('/auth/signup', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// A4. Email Verification Pages — both routes serve verify.html
+// A4. Email Verification
 // ─────────────────────────────────────────────────────────────
 
 app.get('/auth/verify', (req, res) => {
-    res.sendFile(__dirname + '/verify.html');
-});
-
-app.get('/verify.html', (req, res) => {
     res.sendFile(__dirname + '/verify.html');
 });
 
@@ -537,4 +549,4 @@ app.listen(PORT, () => {
     console.log(`[EcoFin] Server running → http://localhost:${PORT}`);
     console.log(`[EcoFin] REDIRECT_URI on startup: ${process.env.REDIRECT_URI}`);
     console.log(`[EcoFin] APP_ID on startup: ${process.env.APP_ID}`);
-}); 
+});
