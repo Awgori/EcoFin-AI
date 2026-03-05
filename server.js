@@ -66,7 +66,6 @@ app.post('/auth/login', async (req, res) => {
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
     try {
-        // ── Sign in via Supabase Auth ─────────────────────────
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (error || !data.user) {
@@ -76,7 +75,6 @@ app.post('/auth/login', async (req, res) => {
 
         console.log(`[EcoFin] ✅ Email login: ${email}`);
 
-        // ── Find matching user in users table by email ────────
         const { data: userData } = await supabase
             .from('users')
             .select('*')
@@ -88,14 +86,13 @@ app.post('/auth/login', async (req, res) => {
         if (userData) {
             userId = userData.id;
         } else {
-            // Create user record if not found
             userId = `email_${data.user.id}`;
             await saveUser(userId, {
                 name:                email.split('@')[0],
                 email,
-                facebook_id:         '',
-                psid:                '',
-                whatsapp:            '',
+                facebook_id:         null,
+                psid:                null,
+                whatsapp:            null,
                 location:            'Philippines',
                 total_catches:       0,
                 fishing_hours:       0,
@@ -104,12 +101,11 @@ app.post('/auth/login', async (req, res) => {
                 member_since:        new Date().toLocaleDateString('en-US', {
                     month: 'long', year: 'numeric'
                 }),
-                messenger_connected:  false,
-                whatsapp_connected:   false,
+                messenger_connected: false,
+                whatsapp_connected:  false,
             });
         }
 
-        // ── Create session ────────────────────────────────────
         req.session.userId   = userId;
         req.session.userName = userData?.name || email.split('@')[0];
         req.session.loggedIn = true;
@@ -119,6 +115,73 @@ app.post('/auth/login', async (req, res) => {
 
     } catch (err) {
         console.error('[EcoFin] ❌ Email login error:', err.message);
+        res.status(500).json({ error: 'Server error. Please try again.' });
+    }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// A3. Sign Up — Create new account
+// ─────────────────────────────────────────────────────────────
+
+app.post('/auth/signup', async (req, res) => {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+        return res.status(400).json({ error: 'Name, email and password are required' });
+    }
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    try {
+        const { data, error: authError } = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+        });
+
+        if (authError) {
+            if (authError.message.toLowerCase().includes('already registered') ||
+                authError.message.toLowerCase().includes('already exists')) {
+                return res.status(400).json({ error: 'An account with this email already exists.' });
+            }
+            return res.status(400).json({ error: authError.message });
+        }
+
+        console.log(`[EcoFin] ✅ New auth account: ${email}`);
+
+        const userId = `user_${data.user.id.replace(/-/g, '').slice(0, 12)}`;
+
+        await saveUser(userId, {
+            name,
+            email,
+            facebook_id:         null,
+            psid:                null,
+            whatsapp:            null,
+            waba_id:             null,
+            location:            'Philippines',
+            total_catches:       0,
+            fishing_hours:       0,
+            achievements:        0,
+            success_rate:        0,
+            member_since:        new Date().toLocaleDateString('en-US', {
+                month: 'long', year: 'numeric'
+            }),
+            messenger_connected: false,
+            whatsapp_connected:  false,
+        });
+
+        console.log(`[EcoFin] ✅ New user created: ${userId} (${name})`);
+
+        req.session.userId   = userId;
+        req.session.userName = name;
+        req.session.loggedIn = true;
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('[EcoFin] ❌ Sign up error:', err.message);
         res.status(500).json({ error: 'Server error. Please try again.' });
     }
 });
@@ -200,8 +263,8 @@ app.get('/auth/messenger/callback', async (req, res) => {
                 member_since:        new Date().toLocaleDateString('en-US', {
                     month: 'long', year: 'numeric'
                 }),
-                messenger_connected:  !!psid,
-                whatsapp_connected:   false,
+                messenger_connected: !!psid,
+                whatsapp_connected:  false,
             });
             console.log(`[EcoFin] ✅ New user created: ${userId}`);
         }
@@ -260,14 +323,14 @@ app.post('/auth/whatsapp/callback', async (req, res) => {
             console.log(`[EcoFin] ✅ WhatsApp linked to ${targetId}: ${phone}`);
         } else {
             await saveUser(`wa_${phone}`, {
-                name:               name || 'EcoFin User',
-                whatsapp:           phone,
-                waba_id:            wabaId || '',
-                whatsapp_connected: true,
+                name:                name || 'EcoFin User',
+                whatsapp:            phone,
+                waba_id:             wabaId || '',
+                whatsapp_connected:  true,
                 messenger_connected: false,
-                total_catches:      0,
-                location:           'Philippines',
-                member_since:       new Date().toLocaleDateString('en-US', {
+                total_catches:       0,
+                location:            'Philippines',
+                member_since:        new Date().toLocaleDateString('en-US', {
                     month: 'long', year: 'numeric'
                 }),
             });

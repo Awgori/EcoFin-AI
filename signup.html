@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoFin - Sign Up</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-container">
+            <img src="images/shark-logo.png" alt="Logo" class="logo">
+            <h1>EcoFin - AI</h1>
+            <p class="subtitle">Smarter Fisheries,<br>Greener Future</p>
+
+            <input type="text"     id="nameInput"     placeholder="Full name">
+            <input type="text"     id="emailInput"    placeholder="Email address">
+            <input type="password" id="passwordInput" placeholder="Password (min. 6 characters)">
+            <input type="password" id="confirmInput"  placeholder="Confirm password">
+
+            <button id="signupBtn">Create Account</button>
+
+            <p id="errorMsg"   style="color:red;font-size:13px;display:none;margin:4px 0;text-align:center;"></p>
+            <p id="successMsg" style="color:green;font-size:13px;display:none;margin:4px 0;text-align:center;">✅ Account created! Redirecting...</p>
+
+            <p class="or">Or continue with</p>
+            <div class="social-login">
+                <i class="fab fa-google"></i>
+                <i class="fab fa-facebook-f" id="fbLoginBtn" title="Sign up with Facebook"></i>
+                <i class="fab fa-twitter"></i>
+                <i class="fab fa-linkedin-in"></i>
+            </div>
+
+            <p class="signup">Already have an account? <a href="/login.html">Sign in</a></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('signupBtn').addEventListener('click', async function () {
+            const name     = document.getElementById('nameInput').value.trim();
+            const email    = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value.trim();
+            const confirm  = document.getElementById('confirmInput').value.trim();
+            const errorMsg   = document.getElementById('errorMsg');
+            const successMsg = document.getElementById('successMsg');
+            const btn        = document.getElementById('signupBtn');
+
+            errorMsg.style.display   = 'none';
+            successMsg.style.display = 'none';
+
+            if (!name) {
+                errorMsg.textContent   = 'Please enter your full name.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+            if (!email || !email.includes('@')) {
+                errorMsg.textContent   = 'Please enter a valid email address.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+            if (password.length < 6) {
+                errorMsg.textContent   = 'Password must be at least 6 characters.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+            if (password !== confirm) {
+                errorMsg.textContent   = 'Passwords do not match.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            btn.textContent = 'Creating account...';
+            btn.disabled    = true;
+
+            try {
+                const res  = await fetch('/auth/signup', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ name, email, password })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    successMsg.style.display = 'block';
+                    setTimeout(() => {
+                        window.location.href = '/dashboard.html';
+                    }, 1000);
+                } else {
+                    errorMsg.textContent   = data.error || 'Sign up failed. Please try again.';
+                    errorMsg.style.display = 'block';
+                    btn.textContent        = 'Create Account';
+                    btn.disabled           = false;
+                }
+            } catch (err) {
+                errorMsg.textContent   = 'Server error. Please try again.';
+                errorMsg.style.display = 'block';
+                btn.textContent        = 'Create Account';
+                btn.disabled           = false;
+            }
+        });
+
+        document.getElementById('confirmInput').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') document.getElementById('signupBtn').click();
+        });
+
+        document.getElementById('fbLoginBtn').addEventListener('click', function () {
+            window.location.href = '/auth/facebook';
+        });
+
+        fetch('/api/me')
+            .then(res => { if (res.ok) window.location.href = '/dashboard.html'; })
+            .catch(() => {});
+    </script>
+</body>
+</html>

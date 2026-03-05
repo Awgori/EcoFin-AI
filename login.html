@@ -32,12 +32,13 @@
                 <i class="fab fa-twitter"></i>
                 <i class="fab fa-linkedin-in"></i>
             </div>
-            <p class="signup">Don't have an account? <a href="#">Sign up</a></p>
+
+            <!-- ✅ Sign up link now points to signup.html -->
+            <p class="signup">Don't have an account? <a href="/signup.html">Sign up</a></p>
         </div>
     </div>
 
     <script>
-        // ─── Email / Password Sign In ─────────────────────────────────
         document.getElementById('loginBtn').addEventListener('click', async function () {
             const email    = document.getElementById('emailInput').value.trim();
             const password = document.getElementById('passwordInput').value.trim();
@@ -78,24 +79,20 @@
             }
         });
 
-        // ─── Press Enter to submit ────────────────────────────────────
         document.getElementById('passwordInput').addEventListener('keydown', function (e) {
             if (e.key === 'Enter') document.getElementById('loginBtn').click();
         });
 
-        // ─── Facebook OAuth Login ─────────────────────────────────────
         document.getElementById('fbLoginBtn').addEventListener('click', function () {
             window.location.href = '/auth/facebook';
         });
 
-        // ─── Show error if redirected back with ?error param ─────────
         const params = new URLSearchParams(window.location.search);
         if (params.get('error')) {
             document.getElementById('errorMsg').textContent   = 'Login failed. Please try again.';
             document.getElementById('errorMsg').style.display = 'block';
         }
 
-        // ─── If already logged in, skip to dashboard ─────────────────
         fetch('/api/me')
             .then(res => { if (res.ok) window.location.href = '/dashboard.html'; })
             .catch(() => {});
