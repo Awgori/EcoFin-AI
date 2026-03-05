@@ -143,7 +143,7 @@ app.post('/auth/signup', async (req, res) => {
             password,
             options: {
                 data: { name },
-                emailRedirectTo: `${process.env.APP_URL || 'https://ecofin-ai-production.up.railway.app'}/verify.html`,
+                emailRedirectTo: `${process.env.APP_URL || 'https://ecofin-ai-production-f13d.up.railway.app'}/verify.html`,
             }
         });
 
