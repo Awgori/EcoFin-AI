@@ -70,7 +70,6 @@ app.post('/auth/login', async (req, res) => {
 
         if (error || !data.user) {
             console.warn(`[EcoFin] ⚠️ Login failed for ${email}:`, error?.message);
-            // Check if it's an unverified email error
             if (error?.message?.toLowerCase().includes('email not confirmed')) {
                 return res.status(401).json({ error: 'Please verify your email before logging in. Check your inbox.' });
             }
@@ -139,13 +138,12 @@ app.post('/auth/signup', async (req, res) => {
     }
 
     try {
-        // ── Use signUp (not admin.createUser) so email verification is required ──
         const { data, error: authError } = await supabase.auth.signUp({
             email,
             password,
             options: {
-                data: { name }, // store name in auth metadata
-                emailRedirectTo: `${process.env.APP_URL || 'https://ecofin-ai-production.up.railway.app'}/auth/verify`,
+                data: { name },
+                emailRedirectTo: `${process.env.APP_URL || 'https://ecofin-ai-production.up.railway.app'}/verify.html`,
             }
         });
 
@@ -157,7 +155,6 @@ app.post('/auth/signup', async (req, res) => {
             return res.status(400).json({ error: authError.message });
         }
 
-        // ── Supabase returns a user even before verification, so pre-create the record ──
         const userId = `user_${data.user.id.replace(/-/g, '').slice(0, 12)}`;
 
         await saveUser(userId, {
@@ -175,13 +172,11 @@ app.post('/auth/signup', async (req, res) => {
             member_since:        new Date().toLocaleDateString('en-US', {
                 month: 'long', year: 'numeric'
             }),
-            messenger_connected: false,  // ✅ Never auto-connected
+            messenger_connected: false,
             whatsapp_connected:  false,
         });
 
         console.log(`[EcoFin] ✅ New signup (pending verification): ${email}`);
-
-        // ── Do NOT create session yet — wait for email verification ──
         res.json({ success: true, pending: true });
 
     } catch (err) {
@@ -195,8 +190,7 @@ app.post('/auth/signup', async (req, res) => {
 // A4. Email Verification Redirect
 // ─────────────────────────────────────────────────────────────
 
-app.get('/auth/verify', async (req, res) => {
-    // Supabase sends token in hash fragment — serve verify.html to handle it
+app.get('/auth/verify', (req, res) => {
     res.sendFile(__dirname + '/verify.html');
 });
 
