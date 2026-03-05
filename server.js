@@ -187,10 +187,14 @@ app.post('/auth/signup', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-// A4. Email Verification Redirect
+// A4. Email Verification Pages — both routes serve verify.html
 // ─────────────────────────────────────────────────────────────
 
 app.get('/auth/verify', (req, res) => {
+    res.sendFile(__dirname + '/verify.html');
+});
+
+app.get('/verify.html', (req, res) => {
     res.sendFile(__dirname + '/verify.html');
 });
 
