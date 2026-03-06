@@ -100,7 +100,6 @@ app.post('/auth/login', async (req, res) => {
         if (userData) {
             userId = userData.id;
         } else {
-            // Fallback — create user record if missing
             userId = `email_${data.user.id}`;
             const name = data.user.user_metadata?.name || email.split('@')[0];
             await saveUser(userId, {
@@ -131,7 +130,7 @@ app.post('/auth/login', async (req, res) => {
         // ── Send login notification to Messenger and/or WhatsApp ──
         const loginUser = userData;
         if (loginUser) {
-            const loginMsg = `👋 Hi ${loginUser.name}! You've just logged in to EcoFin AI.\nType "menu" to see available options.`;
+            const loginMsg = `👋 Hi ${loginUser.name}! You've just logged in to EcoFin AI.`;
             if (loginUser.psid && loginUser.messenger_connected) {
                 await sendMessengerMessage(loginUser.psid, loginMsg);
                 await sendWelcomeButtons(loginUser.psid);
@@ -185,11 +184,10 @@ app.post('/auth/signup', async (req, res) => {
             return res.status(400).json({ error: authError.message });
         }
 
-        // ── Pre-create user record with real name ─────────────
         const userId = `user_${data.user.id.replace(/-/g, '').slice(0, 12)}`;
 
         await saveUser(userId, {
-            name,       // ✅ saves the real full name from signup form
+            name,
             email,
             facebook_id:         null,
             psid:                null,
@@ -262,16 +260,26 @@ app.get('/auth/messenger/callback', async (req, res) => {
 
         console.log(`[EcoFin] ✅ Facebook login: ${name} (${facebookUserId})`);
 
+        // ── Retrieve PSID using user's access token ───────────
         let psid = '';
         try {
             const psidRes = await axios.get(
                 `https://graph.facebook.com/v19.0/${facebookUserId}`,
-                { params: { fields: 'ids_for_pages', access_token: process.env.PAGE_ACCESS_TOKEN } }
+                { params: { fields: 'ids_for_pages', access_token: accessToken } }
             );
             psid = psidRes.data?.ids_for_pages?.data?.[0]?.id || '';
-            if (psid) console.log(`[EcoFin] ✅ PSID retrieved: ${psid}`);
+            if (psid) {
+                console.log(`[EcoFin] ✅ PSID retrieved: ${psid}`);
+            } else {
+                // Fallback: use facebook user ID as PSID
+                psid = facebookUserId;
+                console.log(`[EcoFin] ℹ️ Using facebookUserId as PSID: ${psid}`);
+            }
         } catch (psidErr) {
             console.warn('[EcoFin] ⚠️ Could not retrieve PSID:', psidErr.response?.data || psidErr.message);
+            // Fallback: use facebook user ID as PSID
+            psid = facebookUserId;
+            console.log(`[EcoFin] ℹ️ Using facebookUserId as PSID fallback: ${psid}`);
         }
 
         const existingUser = await getUserByFacebookId(facebookUserId);
@@ -313,13 +321,12 @@ app.get('/auth/messenger/callback', async (req, res) => {
         req.session.loggedIn = true;
 
         // ── Send login notification to Messenger and/or WhatsApp ──
-        const fbLoginMsg = `👋 Hi ${name}! You've just logged in to EcoFin AI.\nType "menu" to see available options.`;
+        const fbLoginMsg = `👋 Hi ${name}! You've just logged in to EcoFin AI.`;
         if (psid) {
             await sendMessengerMessage(psid, fbLoginMsg);
             await sendWelcomeButtons(psid);
         }
 
-        // Check if user has WhatsApp connected
         const { data: fbUserData } = await supabase.from('users').select('*').eq('id', userId).single();
         if (fbUserData?.whatsapp && fbUserData?.whatsapp_connected) {
             await sendWhatsAppMessage(fbUserData.whatsapp, fbLoginMsg);
