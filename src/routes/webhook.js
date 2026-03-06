@@ -21,51 +21,47 @@ function isDuplicate(id) {
 }
 
 // ─── Auto-save PSID when user messages the page ───────────────
+// When a user messages the Facebook page, their real page-scoped PSID
+// arrives here. We match them to a user record by facebook_id or by
+// an old/wrong PSID and overwrite it with the real one.
 async function savePSIDIfNeeded(psid) {
     try {
-        // Check if any user has this PSID already
+        // 1. Already correctly saved?
         const { data: existing } = await supabase
             .from('users')
             .select('id, psid')
             .eq('psid', psid)
             .single();
 
-        if (existing) return; // Already saved
+        if (existing) return; // Already linked, nothing to do
 
-        // Try to find user by facebook_id matching psid (fallback)
-        const { data: fbUser } = await supabase
-            .from('users')
-            .select('id, psid, facebook_id')
-            .eq('facebook_id', psid)
-            .single();
-
-        if (fbUser) {
-            // Update the user with correct PSID
-            await supabase
-                .from('users')
-                .update({ psid, messenger_connected: true })
-                .eq('id', fbUser.id);
-            console.log(`[EcoFin] ✅ PSID auto-saved for user: ${fbUser.id}`);
-            return;
-        }
-
-        // Find user with facebook_id set but no psid yet
-        const { data: unlinkedUser } = await supabase
+        // 2. Find any user that has a facebook_id but wrong/missing PSID
+        //    (We stored facebookUserId as PSID fallback — now replace it)
+        const { data: allFbUsers } = await supabase
             .from('users')
             .select('id, psid, facebook_id, messenger_connected')
-            .not('facebook_id', 'is', null)
-            .is('psid', null)
-            .single();
+            .not('facebook_id', 'is', null);
 
-        if (unlinkedUser) {
-            await supabase
-                .from('users')
-                .update({ psid, messenger_connected: true })
-                .eq('id', unlinkedUser.id);
-            console.log(`[EcoFin] ✅ PSID auto-saved for unlinked user: ${unlinkedUser.id}`);
+        if (allFbUsers && allFbUsers.length > 0) {
+            // Prefer users with no PSID first, then users whose PSID
+            // looks like a facebook_id (wrong fallback)
+            const target =
+                allFbUsers.find(u => !u.psid) ||
+                allFbUsers.find(u => u.psid === u.facebook_id);
+
+            if (target) {
+                await supabase
+                    .from('users')
+                    .update({ psid, messenger_connected: true })
+                    .eq('id', target.id);
+                console.log(`[EcoFin] ✅ Real PSID ${psid} saved for user: ${target.id}`);
+                return;
+            }
         }
+
+        console.log(`[EcoFin] ℹ️ Could not match PSID ${psid} to any user`);
     } catch (err) {
-        // Silently ignore — PSID save is best-effort
+        console.error('[EcoFin] savePSIDIfNeeded error:', err.message);
     }
 }
 
@@ -100,10 +96,10 @@ router.post("/", async (req, res) => {
 
                     const senderId = event.sender.id;
 
-                    // ── Auto-save PSID on every message ───────
+                    // ── Auto-save real PSID on every message ──────────
                     await savePSIDIfNeeded(senderId);
 
-                    // ── Text Messages ──────────────────────────
+                    // ── Text Messages ──────────────────────────────────
                     if (event.message && event.message.mid) {
                         if (isDuplicate(event.message.mid)) continue;
 
@@ -113,7 +109,7 @@ router.post("/", async (req, res) => {
                         }
                     }
 
-                    // ── Postbacks (Button Clicks) ──────────────
+                    // ── Postbacks (Button Clicks) ──────────────────────
                     if (event.postback) {
                         const postbackId = `${senderId}_${event.postback.payload}_${event.timestamp}`;
                         if (isDuplicate(postbackId)) continue;
@@ -164,7 +160,7 @@ router.post("/", async (req, res) => {
 
                         console.log("[EcoFin] WhatsApp from:", phone, "| type:", msg.type);
 
-                        // ── Text message ──────────────────────
+                        // ── Text message ──────────────────────────────
                         if (msg.type === "text") {
                             const text = msg.text?.body?.toLowerCase() || "";
 
@@ -177,7 +173,7 @@ router.post("/", async (req, res) => {
                             }
                         }
 
-                        // ── Interactive list reply (menu selection) ──
+                        // ── Interactive list reply (menu selection) ───
                         if (msg.type === "interactive") {
                             const listReply = msg.interactive?.list_reply;
                             const btnReply = msg.interactive?.button_reply;
@@ -201,7 +197,7 @@ router.post("/", async (req, res) => {
                             }
                         }
 
-                        // ── Any other message type → show menu ─
+                        // ── Any other message type → show menu ────────
                         if (msg.type !== "text" && msg.type !== "interactive") {
                             await sendWhatsAppMenu(phone);
                         }
@@ -225,8 +221,8 @@ async function sendMainMenu(psid) {
                 text: "Hi! Welcome to EcoFin 🎣 How can we help you?",
                 buttons: [
                     { type: "postback", title: "🧑 View My Profile", payload: "VIEW_PROFILE" },
-                    { type: "postback", title: "🐟 Latest Catch", payload: "LATEST_CATCH" },
-                    { type: "postback", title: "📋 Catch History", payload: "CATCH_HISTORY" }
+                    { type: "postback", title: "🐟 Latest Catch",    payload: "LATEST_CATCH" },
+                    { type: "postback", title: "📋 Catch History",   payload: "CATCH_HISTORY" }
                 ]
             }
         }
