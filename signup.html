@@ -42,6 +42,12 @@
     </div>
 
     <script>
+        function isValidEmail(email) {
+            // Checks for proper format: something@something.something
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+            return regex.test(email);
+        }
+
         document.getElementById('signupBtn').addEventListener('click', async function () {
             const name     = document.getElementById('nameInput').value.trim();
             const email    = document.getElementById('emailInput').value.trim();
@@ -59,9 +65,15 @@
                 errorMsg.style.display = 'block';
                 return;
             }
-            if (!email || !email.includes('@') || !email.includes('.')) {
-                errorMsg.textContent   = 'Please enter a valid email address.';
+            if (!email) {
+                errorMsg.textContent   = 'Please enter your email address.';
                 errorMsg.style.display = 'block';
+                return;
+            }
+            if (!isValidEmail(email)) {
+                errorMsg.textContent   = '❌ That doesn\'t look like a valid email address (e.g. name@example.com).';
+                errorMsg.style.display = 'block';
+                document.getElementById('emailInput').focus();
                 return;
             }
             if (password.length < 6) {
@@ -87,7 +99,6 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    // Show verify message, hide the form fields
                     verifyMsg.style.display = 'block';
                     btn.style.display       = 'none';
                     document.getElementById('nameInput').style.display     = 'none';
@@ -110,6 +121,18 @@
 
         document.getElementById('confirmInput').addEventListener('keydown', function (e) {
             if (e.key === 'Enter') document.getElementById('signupBtn').click();
+        });
+
+        // Live validation feedback as user types
+        document.getElementById('emailInput').addEventListener('blur', function () {
+            const email = this.value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+            if (email && !isValidEmail(email)) {
+                errorMsg.textContent   = '❌ That doesn\'t look like a valid email address (e.g. name@example.com).';
+                errorMsg.style.display = 'block';
+            } else {
+                errorMsg.style.display = 'none';
+            }
         });
 
         document.getElementById('fbLoginBtn').addEventListener('click', function () {
