@@ -25,10 +25,7 @@
             margin-top: 6px;
         }
 
-        .edit-btn:hover {
-            background: #2E7D32;
-            color: white;
-        }
+        .edit-btn:hover { background: #2E7D32; color: white; }
 
         .modal-overlay {
             display: none;
@@ -41,9 +38,7 @@
             align-items: center;
         }
 
-        .modal-overlay.active {
-            display: flex;
-        }
+        .modal-overlay.active { display: flex; }
 
         .modal-box {
             background: white;
@@ -53,11 +48,7 @@
             max-width: 360px;
         }
 
-        .modal-box h3 {
-            margin: 0 0 16px;
-            color: #1B5E20;
-            font-size: 16px;
-        }
+        .modal-box h3 { margin: 0 0 16px; color: #1B5E20; font-size: 16px; }
 
         .modal-box input {
             width: 100%;
@@ -69,15 +60,9 @@
             box-sizing: border-box;
         }
 
-        .modal-box input:focus {
-            outline: none;
-            border-color: #2E7D32;
-        }
+        .modal-box input:focus { outline: none; border-color: #2E7D32; }
 
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-        }
+        .modal-actions { display: flex; gap: 10px; }
 
         .modal-actions button {
             flex: 1;
@@ -89,15 +74,8 @@
             font-weight: bold;
         }
 
-        .btn-save {
-            background: #2E7D32;
-            color: white;
-        }
-
-        .btn-cancel {
-            background: #f1f1f1;
-            color: #333;
-        }
+        .btn-save { background: #2E7D32; color: white; }
+        .btn-cancel { background: #f1f1f1; color: #333; }
 
         .wa-modal-overlay {
             display: none;
@@ -110,9 +88,7 @@
             align-items: center;
         }
 
-        .wa-modal-overlay.active {
-            display: flex;
-        }
+        .wa-modal-overlay.active { display: flex; }
 
         .connect-btn {
             font-size: 12px;
@@ -123,20 +99,9 @@
             font-weight: bold;
         }
 
-        .connect-btn.connected {
-            background: #e8f5e9;
-            color: #2E7D32;
-        }
-
-        .connect-btn.not-connected {
-            background: #f1f1f1;
-            color: #555;
-        }
-
-        .connect-btn.wa-btn {
-            background: #e8f5e9;
-            color: #25D366;
-        }
+        .connect-btn.connected { background: #e8f5e9; color: #2E7D32; }
+        .connect-btn.not-connected { background: #f1f1f1; color: #555; }
+        .connect-btn.wa-btn { background: #e8f5e9; color: #25D366; }
 
         .connect-row {
             display: flex;
@@ -146,9 +111,7 @@
             border-bottom: 1px solid #f0f0f0;
         }
 
-        .connect-row:last-child {
-            border-bottom: none;
-        }
+        .connect-row:last-child { border-bottom: none; }
 
         .connect-left {
             display: flex;
@@ -164,9 +127,66 @@
             margin-bottom: 10px;
         }
 
-        .personal-details-header h3 {
-            margin: 0;
+        .personal-details-header h3 { margin: 0; }
+
+        /* ── Floating Toast ───────────────────────────────────────── */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(30px);
+            background: #1a1a1a;
+            color: white;
+            border-radius: 14px;
+            padding: 16px 18px 14px;
+            width: 88%;
+            max-width: 360px;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
         }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            pointer-events: all;
+        }
+
+        .toast-close {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .toast p {
+            margin: 0 24px 12px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #eee;
+        }
+
+        .toast a {
+            display: block;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .toast-messenger { background: #0084ff; }
+        .toast-whatsapp  { background: #25D366; }
     </style>
 </head>
 <body>
@@ -254,7 +274,6 @@
                             <img src="images/chat.png" style="width:22px; height:22px;">
                             <span>Messenger</span>
                         </div>
-                        <!-- ✅ Dynamically set based on messenger_connected -->
                         <button id="messengerBtn" class="connect-btn not-connected">Connect</button>
                     </div>
 
@@ -263,9 +282,7 @@
                             <img src="images/home.png" style="width:22px; height:22px;">
                             <span>WhatsApp</span>
                         </div>
-                        <button id="whatsappBtn" class="connect-btn wa-btn" onclick="openWAModal()">
-                            Connect
-                        </button>
+                        <button id="whatsappBtn" class="connect-btn wa-btn">Connect</button>
                     </div>
                 </div>
 
@@ -308,7 +325,7 @@
         </div>
     </div>
 
-    <!-- Edit Personal Details Modal -->
+    <!-- Edit Modal -->
     <div class="modal-overlay" id="editModal">
         <div class="modal-box">
             <h3>✏️ Edit Personal Details</h3>
@@ -321,7 +338,7 @@
         </div>
     </div>
 
-    <!-- WhatsApp Number Modal -->
+    <!-- WhatsApp Modal -->
     <div class="wa-modal-overlay" id="waModal">
         <div class="modal-box">
             <h3>📱 Connect WhatsApp</h3>
@@ -334,95 +351,132 @@
         </div>
     </div>
 
+    <!-- Floating Toast -->
+    <div class="toast" id="connectToast">
+        <button class="toast-close" onclick="closeToast()">✕</button>
+        <p id="toastMsg"></p>
+        <a id="toastLink" href="#" target="_blank"></a>
+    </div>
+
     <script src="auth.js"></script>
     <script>
         let currentUser = null;
+        let toastTimer  = null;
 
+        // ── Toast ─────────────────────────────────────────────────────
+        function showToast(message, linkText, linkUrl, type) {
+            clearTimeout(toastTimer);
+            document.getElementById('toastMsg').textContent = message;
+            const link = document.getElementById('toastLink');
+            link.textContent = linkText;
+            link.href = linkUrl;
+            link.className = type === 'messenger' ? 'toast-messenger' : 'toast-whatsapp';
+            document.getElementById('connectToast').classList.add('show');
+            toastTimer = setTimeout(closeToast, 10000); // auto-hide after 10s
+        }
+
+        function closeToast() {
+            document.getElementById('connectToast').classList.remove('show');
+        }
+
+        // ── Init ──────────────────────────────────────────────────────
         async function init() {
             currentUser = await requireLogin();
             if (!currentUser) return;
 
-            // ── Try to load Facebook profile picture ─────────────────
             if (currentUser.facebook_id) {
                 const avatar = document.getElementById('profileAvatar');
-                const fbPic = `https://graph.facebook.com/${currentUser.facebook_id}/picture?type=large`;
                 const testImg = new Image();
-                testImg.onload = () => { avatar.src = fbPic; };
-                testImg.onerror = () => { /* keep default */ };
-                testImg.src = fbPic;
+                testImg.onload = () => {
+                    avatar.src = `https://graph.facebook.com/${currentUser.facebook_id}/picture?type=large`;
+                };
+                testImg.src = `https://graph.facebook.com/${currentUser.facebook_id}/picture?type=large`;
             }
 
-            // ── Profile header ────────────────────────────────────────
             document.getElementById('profileName').textContent = currentUser.name || '--';
             document.getElementById('profileLocation').textContent = currentUser.location || 'Philippines';
             document.title = `Profile — ${currentUser.name}`;
 
-            // ── Fetch real catch count from API ───────────────────────
             let catchCount = 0;
             try {
                 const res = await fetch('/api/my-catches');
                 const catches = await res.json();
                 catchCount = catches.length;
-
                 if (catches.length) {
                     const latest = catches[catches.length - 1];
                     document.getElementById('catchFish').textContent =
                         `${latest.fish} — ${latest.weight} kg (${latest.size})`;
-                    document.getElementById('catchLocation').textContent =
-                        `📍 ${latest.location || 'Unknown'}`;
-                    document.getElementById('catchDate').textContent =
-                        `📅 ${latest.date}`;
+                    document.getElementById('catchLocation').textContent = `📍 ${latest.location || 'Unknown'}`;
+                    document.getElementById('catchDate').textContent = `📅 ${latest.date}`;
                 } else {
                     document.getElementById('catchFish').textContent = 'No catches logged yet.';
                     document.getElementById('catchLocation').textContent = '';
                     document.getElementById('catchDate').textContent = '';
                 }
-            } catch (err) {
-                console.error('Could not load catches:', err);
-            }
+            } catch (err) { console.error('Could not load catches:', err); }
 
-            // ── Stat cards ────────────────────────────────────────────
             document.getElementById('totalCatches').textContent = catchCount;
             document.getElementById('successRate').textContent =
                 catchCount > 0 ? Math.min(100, Math.round((catchCount / (catchCount + 2)) * 100)) + '%' : '0%';
             document.getElementById('achievements').textContent =
                 catchCount >= 20 ? '🥇' : catchCount >= 10 ? '🥈' : catchCount >= 5 ? '🥉' : catchCount;
-            document.getElementById('fishingHours').textContent =
-                Math.round(catchCount * 1.5);
+            document.getElementById('fishingHours').textContent = Math.round(catchCount * 1.5);
 
-            // ── Personal details ──────────────────────────────────────
-            document.getElementById('detailName').textContent = currentUser.name || '--';
-            document.getElementById('detailEmail').textContent = currentUser.email || 'Not provided';
+            document.getElementById('detailName').textContent    = currentUser.name || '--';
+            document.getElementById('detailEmail').textContent   = currentUser.email || 'Not provided';
             document.getElementById('detailLocation').textContent = currentUser.location || 'Philippines';
-            document.getElementById('detailMember').textContent = currentUser.member_since || '--';
+            document.getElementById('detailMember').textContent  = currentUser.member_since || '--';
 
-            // ── Messenger status — based on messenger_connected field ─
+            // ── Messenger button ──────────────────────────────────────
             const messengerBtn = document.getElementById('messengerBtn');
             if (currentUser.messenger_connected) {
                 messengerBtn.textContent = '✅ Connected';
-                messengerBtn.className = 'connect-btn connected';
-                messengerBtn.onclick = null;
+                messengerBtn.className   = 'connect-btn connected';
+                messengerBtn.onclick     = () => showToast(
+                    "✅ Messenger connected! Send 'hi' to our EcoFin page to activate notifications.",
+                    '💬 Open EcoFin on Messenger',
+                    'https://m.me/1051810074674400',
+                    'messenger'
+                );
             } else {
                 messengerBtn.textContent = 'Connect';
-                messengerBtn.className = 'connect-btn not-connected';
-                messengerBtn.onclick = () => { window.location.href = '/auth/messenger'; };
+                messengerBtn.className   = 'connect-btn not-connected';
+                messengerBtn.onclick     = () => { window.location.href = '/auth/messenger'; };
             }
 
-            // ── WhatsApp status ───────────────────────────────────────
+            // ── WhatsApp button ───────────────────────────────────────
             const waBtn = document.getElementById('whatsappBtn');
             if (currentUser.whatsapp && currentUser.whatsapp_connected) {
                 waBtn.textContent = `✅ ${currentUser.whatsapp}`;
-                waBtn.className = 'connect-btn connected';
-                waBtn.onclick = null;
+                waBtn.className   = 'connect-btn connected';
+                waBtn.onclick     = () => showToast(
+                    "✅ WhatsApp connected! Send 'hi' to our EcoFin WhatsApp to activate notifications.",
+                    '💬 Open EcoFin on WhatsApp',
+                    'https://wa.me/15551380852',
+                    'whatsapp'
+                );
             } else {
                 waBtn.textContent = 'Connect';
-                waBtn.className = 'connect-btn wa-btn';
+                waBtn.className   = 'connect-btn wa-btn';
+                waBtn.onclick     = openWAModal;
             }
+
+            // ── Show toast if redirected after Messenger OAuth ────────
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('connected') === 'messenger') {
+                showToast(
+                    "✅ Messenger connected! Send 'hi' to our EcoFin page to activate notifications.",
+                    '💬 Open EcoFin on Messenger',
+                    'https://m.me/1051810074674400',
+                    'messenger'
+                );
+            }
+            if (params.get('error')) alert('❌ Connection failed. Please try again.');
         }
 
         // ── Edit Modal ────────────────────────────────────────────────
         function openEditModal() {
-            document.getElementById('editName').value = currentUser.name || '';
+            document.getElementById('editName').value  = currentUser.name || '';
             document.getElementById('editEmail').value = currentUser.email || '';
             document.getElementById('editModal').classList.add('active');
         }
@@ -434,21 +488,18 @@
         async function saveDetails() {
             const name  = document.getElementById('editName').value.trim();
             const email = document.getElementById('editEmail').value.trim();
-
             if (!name) return alert('Name cannot be empty.');
-
             try {
-                const res = await fetch('/api/update-profile', {
+                const res  = await fetch('/api/update-profile', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email })
                 });
-
                 const data = await res.json();
                 if (data.success) {
-                    document.getElementById('profileName').textContent = name;
-                    document.getElementById('detailName').textContent = name;
-                    document.getElementById('detailEmail').textContent = email || 'Not provided';
+                    document.getElementById('profileName').textContent  = name;
+                    document.getElementById('detailName').textContent   = name;
+                    document.getElementById('detailEmail').textContent  = email || 'Not provided';
                     currentUser.name  = name;
                     currentUser.email = email;
                     closeEditModal();
@@ -456,9 +507,7 @@
                 } else {
                     alert('❌ Failed to update. Try again.');
                 }
-            } catch (err) {
-                alert('❌ Error: ' + err.message);
-            }
+            } catch (err) { alert('❌ Error: ' + err.message); }
         }
 
         // ── WhatsApp Modal ────────────────────────────────────────────
@@ -472,38 +521,39 @@
 
         async function saveWhatsApp() {
             const phone = document.getElementById('waNumber').value.trim().replace(/^\+/, '');
-
             if (!phone || phone.length < 10) return alert('Please enter a valid phone number.');
-
             try {
-                const res = await fetch('/auth/whatsapp/callback', {
+                const res  = await fetch('/auth/whatsapp/callback', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ phone })
                 });
-
                 const data = await res.json();
                 if (data.success) {
-                    const waBtn = document.getElementById('whatsappBtn');
+                    const waBtn       = document.getElementById('whatsappBtn');
                     waBtn.textContent = `✅ ${phone}`;
-                    waBtn.className = 'connect-btn connected';
-                    waBtn.onclick = null;
-                    currentUser.whatsapp = phone;
+                    waBtn.className   = 'connect-btn connected';
+                    waBtn.onclick     = () => showToast(
+                        "✅ WhatsApp connected! Send 'hi' to our EcoFin WhatsApp to activate notifications.",
+                        '💬 Open EcoFin on WhatsApp',
+                        'https://wa.me/15551380852',
+                        'whatsapp'
+                    );
+                    currentUser.whatsapp           = phone;
                     currentUser.whatsapp_connected = true;
                     closeWAModal();
-                    alert('✅ WhatsApp connected!');
+                    // Show toast immediately
+                    showToast(
+                        "✅ WhatsApp connected! Send 'hi' to our EcoFin WhatsApp to activate notifications.",
+                        '💬 Open EcoFin on WhatsApp',
+                        'https://wa.me/15551534690',
+                        'whatsapp'
+                    );
                 } else {
                     alert('❌ Failed to connect WhatsApp.');
                 }
-            } catch (err) {
-                alert('❌ Error: ' + err.message);
-            }
+            } catch (err) { alert('❌ Error: ' + err.message); }
         }
-
-        // ── Show messages from redirect params ────────────────────────
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('connected') === 'messenger') alert('✅ Messenger connected!');
-        if (params.get('error')) alert('❌ Connection failed. Please try again.');
 
         init();
     </script>
