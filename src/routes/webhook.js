@@ -8,6 +8,8 @@ const {
     handleWhatsAppOnly,
 } = require("../services/messengerService");
 
+const { supabase } = require("../services/supabase");
+
 // Prevent double-sends
 const processedEvents = new Set();
 
@@ -16,6 +18,55 @@ function isDuplicate(id) {
     processedEvents.add(id);
     if (processedEvents.size > 1000) processedEvents.clear();
     return false;
+}
+
+// ─── Auto-save PSID when user messages the page ───────────────
+async function savePSIDIfNeeded(psid) {
+    try {
+        // Check if any user has this PSID already
+        const { data: existing } = await supabase
+            .from('users')
+            .select('id, psid')
+            .eq('psid', psid)
+            .single();
+
+        if (existing) return; // Already saved
+
+        // Try to find user by facebook_id matching psid (fallback)
+        const { data: fbUser } = await supabase
+            .from('users')
+            .select('id, psid, facebook_id')
+            .eq('facebook_id', psid)
+            .single();
+
+        if (fbUser) {
+            // Update the user with correct PSID
+            await supabase
+                .from('users')
+                .update({ psid, messenger_connected: true })
+                .eq('id', fbUser.id);
+            console.log(`[EcoFin] ✅ PSID auto-saved for user: ${fbUser.id}`);
+            return;
+        }
+
+        // Find user with facebook_id set but no psid yet
+        const { data: unlinkedUser } = await supabase
+            .from('users')
+            .select('id, psid, facebook_id, messenger_connected')
+            .not('facebook_id', 'is', null)
+            .is('psid', null)
+            .single();
+
+        if (unlinkedUser) {
+            await supabase
+                .from('users')
+                .update({ psid, messenger_connected: true })
+                .eq('id', unlinkedUser.id);
+            console.log(`[EcoFin] ✅ PSID auto-saved for unlinked user: ${unlinkedUser.id}`);
+        }
+    } catch (err) {
+        // Silently ignore — PSID save is best-effort
+    }
 }
 
 // ─── Verify Webhook ───────────────────────────────────────────
@@ -48,6 +99,9 @@ router.post("/", async (req, res) => {
                 for (const event of entry.messaging) {
 
                     const senderId = event.sender.id;
+
+                    // ── Auto-save PSID on every message ───────
+                    await savePSIDIfNeeded(senderId);
 
                     // ── Text Messages ──────────────────────────
                     if (event.message && event.message.mid) {
@@ -114,7 +168,6 @@ router.post("/", async (req, res) => {
                         if (msg.type === "text") {
                             const text = msg.text?.body?.toLowerCase() || "";
 
-                            // Any greeting → send the interactive menu automatically
                             if (
                                 text === "hi" || text === "hello" ||
                                 text === "start" || text === "menu" ||
@@ -144,7 +197,6 @@ router.post("/", async (req, res) => {
                                     break;
                                 default:
                                     console.log("[EcoFin] Unhandled WA selection:", selectedId);
-                                    // Unrecognised message → show the menu anyway
                                     await sendWhatsAppMenu(phone);
                             }
                         }
