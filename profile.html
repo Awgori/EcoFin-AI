@@ -30,7 +30,6 @@
             color: white;
         }
 
-        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -100,7 +99,6 @@
             color: #333;
         }
 
-        /* WhatsApp number modal */
         .wa-modal-overlay {
             display: none;
             position: fixed;
@@ -256,7 +254,8 @@
                             <img src="images/chat.png" style="width:22px; height:22px;">
                             <span>Messenger</span>
                         </div>
-                        <span id="messengerStatus" class="connect-btn connected">✅ Connected</span>
+                        <!-- ✅ Dynamically set based on messenger_connected -->
+                        <button id="messengerBtn" class="connect-btn not-connected">Connect</button>
                     </div>
 
                     <div class="connect-row">
@@ -365,7 +364,6 @@
                 const catches = await res.json();
                 catchCount = catches.length;
 
-                // ── Latest catch ──────────────────────────────────────
                 if (catches.length) {
                     const latest = catches[catches.length - 1];
                     document.getElementById('catchFish').textContent =
@@ -398,13 +396,19 @@
             document.getElementById('detailLocation').textContent = currentUser.location || 'Philippines';
             document.getElementById('detailMember').textContent = currentUser.member_since || '--';
 
-            // ── Connected accounts ────────────────────────────────────
-            // Messenger — always connected since they logged in with Facebook
-            const messengerStatus = document.getElementById('messengerStatus');
-            messengerStatus.textContent = '✅ Connected';
-            messengerStatus.className = 'connect-btn connected';
+            // ── Messenger status — based on messenger_connected field ─
+            const messengerBtn = document.getElementById('messengerBtn');
+            if (currentUser.messenger_connected) {
+                messengerBtn.textContent = '✅ Connected';
+                messengerBtn.className = 'connect-btn connected';
+                messengerBtn.onclick = null;
+            } else {
+                messengerBtn.textContent = 'Connect';
+                messengerBtn.className = 'connect-btn not-connected';
+                messengerBtn.onclick = () => { window.location.href = '/auth/messenger'; };
+            }
 
-            // WhatsApp
+            // ── WhatsApp status ───────────────────────────────────────
             const waBtn = document.getElementById('whatsappBtn');
             if (currentUser.whatsapp && currentUser.whatsapp_connected) {
                 waBtn.textContent = `✅ ${currentUser.whatsapp}`;
@@ -428,7 +432,7 @@
         }
 
         async function saveDetails() {
-            const name = document.getElementById('editName').value.trim();
+            const name  = document.getElementById('editName').value.trim();
             const email = document.getElementById('editEmail').value.trim();
 
             if (!name) return alert('Name cannot be empty.');
@@ -445,7 +449,7 @@
                     document.getElementById('profileName').textContent = name;
                     document.getElementById('detailName').textContent = name;
                     document.getElementById('detailEmail').textContent = email || 'Not provided';
-                    currentUser.name = name;
+                    currentUser.name  = name;
                     currentUser.email = email;
                     closeEditModal();
                     alert('✅ Profile updated!');
