@@ -285,7 +285,16 @@ app.get('/auth/messenger/callback', async (req, res) => {
         const existingUser = await getUserByFacebookId(facebookUserId);
         let userId;
 
-        if (existingUser) {
+        // If already logged in (email user connecting Messenger)
+        if (req.session.loggedIn && req.session.userId) {
+            userId = req.session.userId;
+            await updateUser(userId, {
+                facebook_id:         facebookUserId,
+                psid:                psid || '',
+                messenger_connected: !!psid,
+            });
+            console.log(`[EcoFin] ✅ Messenger linked to existing user: ${userId}`);
+        } else if (existingUser) {
             userId = existingUser.id;
             await updateUser(userId, {
                 name,
@@ -293,7 +302,7 @@ app.get('/auth/messenger/callback', async (req, res) => {
                 psid:                psid || existingUser.psid || '',
                 messenger_connected: !!psid,
             });
-            console.log(`[EcoFin] ✅ Existing user updated: ${userId}`);
+            console.log(`[EcoFin] ✅ Existing Facebook user updated: ${userId}`);
         } else {
             userId = `fb_${facebookUserId}`;
             await saveUser(userId, {
@@ -313,7 +322,7 @@ app.get('/auth/messenger/callback', async (req, res) => {
                 messenger_connected: !!psid,
                 whatsapp_connected:  false,
             });
-            console.log(`[EcoFin] ✅ New user created: ${userId}`);
+            console.log(`[EcoFin] ✅ New Facebook user created: ${userId}`);
         }
 
         req.session.userId   = userId;
