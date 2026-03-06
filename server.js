@@ -270,8 +270,8 @@ app.get('/auth/messenger/callback', async (req, res) => {
             );
             psid = psidRes.data?.ids_for_pages?.data?.[0]?.id || '';
             if (psid) console.log(`[EcoFin] ✅ PSID retrieved: ${psid}`);
-        } catch {
-            console.warn('[EcoFin] ⚠️ Could not retrieve PSID');
+        } catch (psidErr) {
+            console.warn('[EcoFin] ⚠️ Could not retrieve PSID:', psidErr.response?.data || psidErr.message);
         }
 
         const existingUser = await getUserByFacebookId(facebookUserId);
