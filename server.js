@@ -16,7 +16,7 @@ const {
     deleteCatches,
     supabase
 } = require('./src/services/supabase');
-const { handleSystemMessage } = require('./src/services/messengerService');
+const { handleSystemMessage, sendMessengerMessage, sendWhatsAppMessage, sendWelcomeButtons, sendWhatsAppMenu } = require('./src/services/messengerService');
 
 const app = express();
 
@@ -127,6 +127,21 @@ app.post('/auth/login', async (req, res) => {
         req.session.loggedIn = true;
 
         console.log(`[EcoFin] ✅ Session created for ${userId}`);
+
+        // ── Send login notification to Messenger and/or WhatsApp ──
+        const loginUser = userData;
+        if (loginUser) {
+            const loginMsg = `👋 Hi ${loginUser.name}! You've just logged in to EcoFin AI.\nType "menu" to see available options.`;
+            if (loginUser.psid && loginUser.messenger_connected) {
+                await sendMessengerMessage(loginUser.psid, loginMsg);
+                await sendWelcomeButtons(loginUser.psid);
+            }
+            if (loginUser.whatsapp && loginUser.whatsapp_connected) {
+                await sendWhatsAppMessage(loginUser.whatsapp, loginMsg);
+                await sendWhatsAppMenu(loginUser.whatsapp);
+            }
+        }
+
         res.json({ success: true });
 
     } catch (err) {
@@ -296,6 +311,20 @@ app.get('/auth/messenger/callback', async (req, res) => {
         req.session.userId   = userId;
         req.session.userName = name;
         req.session.loggedIn = true;
+
+        // ── Send login notification to Messenger and/or WhatsApp ──
+        const fbLoginMsg = `👋 Hi ${name}! You've just logged in to EcoFin AI.\nType "menu" to see available options.`;
+        if (psid) {
+            await sendMessengerMessage(psid, fbLoginMsg);
+            await sendWelcomeButtons(psid);
+        }
+
+        // Check if user has WhatsApp connected
+        const { data: fbUserData } = await supabase.from('users').select('*').eq('id', userId).single();
+        if (fbUserData?.whatsapp && fbUserData?.whatsapp_connected) {
+            await sendWhatsAppMessage(fbUserData.whatsapp, fbLoginMsg);
+            await sendWhatsAppMenu(fbUserData.whatsapp);
+        }
 
         res.redirect('/dashboard.html');
 
